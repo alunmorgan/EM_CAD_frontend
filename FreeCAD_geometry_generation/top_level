@@ -1,0 +1,6 @@
+import subprocess
+# subprocess.call('C:\\Program Files (x86)\\FreeCAD 0.14\\bin\\python.exe pillbox_cavity.py X:\Alun\EM_test_input_files')
+# subprocess.call('C:\\Program Files (x86)\\FreeCAD 0.14\\bin\\python.exe simple_buttons.py X:\Alun\EM_test_input_files')
+# subprocess.call('C:\\Program Files (x86)\\FreeCAD 0.14\\bin\\python.exe racetrack_to_octagonal_taper.py X:\Alun\EM_test_input_files')
+subprocess.call('C:\\Program Files (x86)\\FreeCAD 0.14\\bin\\python.exe octagonal_to_racetrack_taper.py X:\Alun\EM_test_input_files')
+subprocess.call('C:\\Program Files (x86)\\FreeCAD 0.14\\bin\\python.exe racetrack__tapered_cavity.py X:\Alun\EM_test_input_files')
