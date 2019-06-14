@@ -31,7 +31,7 @@ def base_model(model_function, input_params, output_path, accuracy=2, just_cad=0
         generate_output_files(output_loc, model_name, parts_list, inputs, tag='Base', mesh_resolution=accuracy,
                               just_cad=just_cad)
     except ModelException as e:
-        print 'Problem with base model ', '\n\t', e
+        print('Problem with base model ', '\n\t', e)
 
 
 def parameter_sweep(model_function, input_params, output_path, sweep_variable, sweep_vals, accuracy=5, just_cad=0):
@@ -60,7 +60,7 @@ def parameter_sweep(model_function, input_params, output_path, sweep_variable, s
             generate_output_files(copy.copy(output_path), model_name, parts_list, inputs, tag=model_tag,
                                   mesh_resolution=accuracy, just_cad=just_cad)
         except ModelException as e:
-            print 'Problem with model ', sweep_variable, '_sweep_value_', str(inputs[sweep_variable]), '\n\t', e
+            print('Problem with model ', sweep_variable, '_sweep_value_', str(inputs[sweep_variable]), '\n\t', e)
 
 
 def add_shadowing_bump(pipe_width, bump_thickness, bump_height, bump_top_length, bump_us_length, bump_ds_length, side,
@@ -462,7 +462,7 @@ def generate_output_files(root_loc, model_name, parts_list, input_parameters, ta
             mymesh.Mesh.write(os.path.join(output_loc, 'ascii', ''.join([part_name, '.stl'])), "AST", mesh_name)
 
     FreeCAD.closeDocument(document_name)
-    FreeCADGui.getMainWindow().close()
+    #FreeCADGui.getMainWindow().close()
 
     parameter_file_name = ''.join([model_name, '_', tag, '_parameters.txt'])
     param_file = open(os.path.join(output_loc, parameter_file_name), 'w')
