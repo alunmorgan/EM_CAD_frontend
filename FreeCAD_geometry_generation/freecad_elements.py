@@ -210,9 +210,7 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
 
 
 def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length):
-    """ Creates a wire outline of a circular pipe with a keyhole extension on the side.
-        aperture_height and aperture_width are the full height and width (the same as if it were a rectangle).
-        The end curves are defined as 180 degree arcs.
+    """ Creates a wire outline of an arc.
 
         Args:
             arc_inner_radius (float): Radius of the inside edge of the arc.
@@ -251,6 +249,41 @@ def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length):
     wire1 = Part.Wire(shape1.Edges)
     # Make a face.
     face1 = Part.Face(wire1)
+    return wire1, face1
+
+
+def make_arched_base_aperture(aperture_height, aperture_width, arc_radius):
+    """ Creates a wire outline of a rectangle with an arc removed from one edge..
+
+        Args:
+            arc_radius (float): Radius of the arc.
+            aperture_height (float): Total height of the aperture
+            aperture_width (float): Total width of the aperture
+
+        Returns:
+            wire1 (FreeCAD wire definition): An outline description of the shape.
+            face1 (FreeCAD face definition): A surface description of the shape.
+        """
+    # Create the initial four vertices where line meets curve.
+    v1 = Base.Vector(0, aperture_height / 2., -aperture_width / 2.)
+    v2 = Base.Vector(0, aperture_height / 2., aperture_width / 2.)
+    v3 = Base.Vector(0, -aperture_height / 2., aperture_width / 2.)
+    v4 = Base.Vector(0, -aperture_height / 2., -aperture_width / 2.)
+    cv1 = Base.Vector(0, -aperture_height / 2. + arc_radius - sqrt(arc_radius ** 2 - (aperture_width ** 2) / 4), 0)
+    # Create lines
+    line1 = Part.LineSegment(v4, v1)
+    line2 = Part.LineSegment(v1, v2)
+    line3 = Part.LineSegment(v2, v3)
+    # Create curves
+    arc1 = Part.Arc(v3, cv1, v4)
+    arc1_edge = arc1.toShape()
+    # Make a shape
+    shape1 = Part.Shape([line1, line2, line3, arc1])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+
     return wire1, face1
 
 
@@ -372,7 +405,7 @@ def make_beampipe(pipe_aperture, pipe_length, loc=(0, 0, 0), rotation_angles=(0,
     return p
 
 
-def make_taper(aperture1, aperture2, taper_length, loc=(0,0,0), rotation_angles=(0,0,0)):
+def make_taper(aperture1, aperture2, taper_length, loc=(0, 0, 0), rotation_angles=(0, 0, 0), aperture_xy_offset=(0, 0)):
     """Takes two aperture descriptions and creates a taper between them.
      The centre of the face of aperture1 will be at loc and rotations will happen about that point.
      Assume both apertures are initially centred on (0,0,0)
@@ -383,11 +416,12 @@ def make_taper(aperture1, aperture2, taper_length, loc=(0,0,0), rotation_angles=
         taper_length (float): distance between apertures.
         loc (tuple) : The co ordinates of the final location of the centre of aperture1.
         rotation_angles (tuple) : The angles to rotate about in the three cartesian directions.
+        aperture_xy_offset(tuple): The translational offsets between teh two apertures.
 
      Returns:
         taper (FreeCAD shape): A model of the shape.
     """
-    aperture2.translate(Base.Vector(taper_length, 0, 0))
+    aperture2.translate(Base.Vector(taper_length, aperture_xy_offset[0], aperture_xy_offset[1]))
     taper = Part.makeLoft([aperture1, aperture2], True, False, False)
     taper.rotate(Base.Vector(0, 0, 0), Base.Vector(0, 0, 1), rotation_angles[2])    # Rotate around Z
     taper.rotate(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0), rotation_angles[0])    # Rotate around X
