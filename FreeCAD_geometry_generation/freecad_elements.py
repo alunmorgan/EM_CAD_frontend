@@ -190,12 +190,13 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     x_intersection = sqrt(pipe_radius**2 - (keyhole_height / 2.)**2)
     # Create the initial four vertices for the lines.
     v1 = Base.Vector(0, keyhole_height / 2., x_intersection)
-    v2 = Base.Vector(0, keyhole_height / 2., x_intersection + keyhole_width)
-    v3 = Base.Vector(0, -keyhole_height / 2., x_intersection + keyhole_width)
+    v2 = Base.Vector(0, keyhole_height / 2., x_intersection + keyhole_width - keyhole_height / 2)
+    v3 = Base.Vector(0, -keyhole_height / 2., x_intersection + keyhole_width - keyhole_height / 2)
     v4 = Base.Vector(0, -keyhole_height / 2., x_intersection)
+    v5 = Base.Vector(0, 0, x_intersection + keyhole_width)
     # Create lines
     line1 = Part.LineSegment(v1, v2)
-    line2 = Part.LineSegment(v2, v3)
+    arc2 = Part.Arc(v2, v5, v3)
     line3 = Part.LineSegment(v3, v4)
 
     # angle at which the keyhole intersects the pipe.
@@ -206,7 +207,7 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     arc1 = Part.Arc(curve1, half_angle, (2 * pi) - half_angle)  # angles are in radian here
 
     # Make a shape
-    shape1 = Part.Shape([arc1, line1, line2, line3])
+    shape1 = Part.Shape([arc1, line1, arc2, line3])
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
     # Make a face.
