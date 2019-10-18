@@ -54,6 +54,11 @@ def parameter_sweep(model_function, input_params, output_path, sweep_variable, s
     for inputs[sweep_variable] in sweep_vals:
         # Replacing . with p to prevent problems with filename parsing
         value_string = str(inputs[sweep_variable]).replace('.', 'p')
+        value_string = value_string.replace(' ', '_')
+        value_string = value_string.replace(',', '')
+        value_string = value_string.replace('[', '')
+        value_string = value_string.replace(']', '')
+
         model_tag = ''.join([sweep_variable, '_sweep_value_', value_string])
         try:
             parts_list, model_name = model_function(inputs)
