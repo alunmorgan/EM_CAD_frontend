@@ -534,11 +534,9 @@ def generate_output_files(root_loc, model_name, parts_list, input_parameters, ta
             mymesh = doc.addObject("Mesh::Feature", "Mesh")
             mymesh.Mesh = m1
             mymesh.Label = mesh_name
-           # mymesh.Mesh.write(os.path.join(output_loc, 'binary', ''.join([part_name, '.stl'])), "STL", mesh_name)
             mymesh.Mesh.write(os.path.join(output_loc, 'ascii', ''.join([part_name, '.stl'])), "AST", mesh_name)
 
     FreeCAD.closeDocument(document_name)
-    #FreeCADGui.getMainWindow().close()
 
     parameter_file_name = ''.join([model_name, '_', tag, '_parameters.txt'])
     param_file = open(os.path.join(output_loc, parameter_file_name), 'w')
