@@ -414,9 +414,9 @@ def make_elliptical_aperture(aperture_height, aperture_width):
     b = aperture_height / 2.
     a = aperture_width / 2.
 
-    test = Part.Ellipse(Base.Vector(0, 0, 0), a, b)
+    el1 = Part.Ellipse(Base.Vector(0, 0, 0), a, b)
     # Make a shape
-    shape1 = test.toShape()
+    shape1 = el1.toShape()
     shape1.rotate(Base.Vector(0, 0, 0), Base.Vector(0, 1, 0), 90)
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
