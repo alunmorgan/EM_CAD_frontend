@@ -2,7 +2,7 @@
 import FreeCAD, FreeCADGui
 import Part, Mesh, MeshPart
 from FreeCAD import Base
-from math import pi, asin, sqrt, sin, cos
+from math import pi, asin, sqrt, sin, cos, tan
 import copy
 import os
 
@@ -58,6 +58,7 @@ def parameter_sweep(model_function, input_params, output_path, sweep_variable, s
         value_string = value_string.replace(',', '')
         value_string = value_string.replace('[', '')
         value_string = value_string.replace(']', '')
+        value_string = value_string.replace('-', 'm')
 
         model_tag = ''.join([sweep_variable, '_sweep_value_', value_string])
         try:
@@ -391,6 +392,92 @@ def make_octagonal_aperture(aperture_height, aperture_width, side_length, tb_len
     line8 = Part.LineSegment(v8, v1)
     # Make a shape
     shape1 = Part.Shape([line1, line2, line3, line4, line5, line6, line7, line8])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
+
+def make_octagonal_aperture_with_keyholes_and_antichamber(aperture_height, tb_width,
+                                                          ib_oct_width, ob_oct_width,
+                                                          ib_keyhole_height, ib_keyhole_width,
+                                                          ob_keyhole_height, ob_keyhole_width,
+                                                          antichamber_taper_width, antichamber_height,
+                                                          antichamber_width):
+    """ Creates a wire outline of a symmetric octagon specified by 4 inputs.
+    aperture_height and aperture_width are the full height and width (the same as if it were a rectangle)
+    side_length and tb_length specify the lengths of the top/ bottom and sides
+    and so implicitly allow the diagonals to be defined.
+
+    Args:
+        aperture_height (float): Total height of the octagon.
+        tb_width (float): Length of the horizontal sides.
+        ib_oct_width (float): width of the angled side of the octagon.
+        ob_oct_width (float): width of the angled side of the octagon.
+        ib_keyhole_height (float): height of the inboard keyhole slot.
+        ib_keyhole_width (float): width of the inboard keyhole slot.
+        ob_keyhole_height (float): height of the outboard keyhole slot.
+        ob_keyhole_width (float): width of the outboard keyhole slot.
+        antichamber_taper_width (float): width of the taper between the inboard slot and the antichamber.
+        antichamber_width (float): width of the antichamber.
+        antichamber_height (float): height of the antichamber.
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+
+    # Create the initial vertices.
+    x1 = -tb_width / 2. - ob_oct_width - ob_keyhole_width
+    x2 = -tb_width / 2. - ob_oct_width
+    x3 = -tb_width / 2.
+    x4 = tb_width / 2.
+    x5 = tb_width / 2. + ib_oct_width
+    x6 = tb_width / 2. + ib_oct_width + ib_keyhole_width
+    x7 = tb_width / 2. + ib_oct_width + ib_keyhole_width + antichamber_taper_width
+    x8 = tb_width / 2. + ib_oct_width + ib_keyhole_width + antichamber_taper_width + antichamber_width
+    y1 = ob_keyhole_height / 2.
+    y2 = aperture_height / 2.
+    y3 = ib_keyhole_height / 2.
+    y4 = antichamber_height / 2.
+
+    v1 = Base.Vector(0, y1, x1)
+    v2 = Base.Vector(0, y1, x2)
+    v3 = Base.Vector(0, y2, x3)
+    v4 = Base.Vector(0, y2, x4)
+    v5 = Base.Vector(0, y3, x5)
+    v6 = Base.Vector(0, y3, x6)
+    v7 = Base.Vector(0, y4, x7)
+    v8 = Base.Vector(0, y4, x8)
+    v9 = Base.Vector(0, -y4, x8)
+    v10 = Base.Vector(0, -y4, x7)
+    v11 = Base.Vector(0, -y3, x6)
+    v12 = Base.Vector(0, -y3, x5)
+    v13 = Base.Vector(0, -y2, x4)
+    v14 = Base.Vector(0, -y2, x3)
+    v15 = Base.Vector(0, -y1, x2)
+    v16 = Base.Vector(0, -y1, x1)
+    # Create lines
+    line1 = Part.LineSegment(v1, v2)
+    line2 = Part.LineSegment(v2, v3)
+    line3 = Part.LineSegment(v3, v4)
+    line4 = Part.LineSegment(v4, v5)
+    line5 = Part.LineSegment(v5, v6)
+    line6 = Part.LineSegment(v6, v7)
+    line7 = Part.LineSegment(v7, v8)
+    line8 = Part.LineSegment(v8, v9)
+    line9 = Part.LineSegment(v9, v10)
+    line10 = Part.LineSegment(v10, v11)
+    line11 = Part.LineSegment(v11, v12)
+    line12 = Part.LineSegment(v12, v13)
+    line13 = Part.LineSegment(v13, v14)
+    line14 = Part.LineSegment(v14, v15)
+    line15 = Part.LineSegment(v15, v16)
+    line16 = Part.LineSegment(v16, v1)
+    # Make a shape
+    shape1 = Part.Shape([line1, line2, line3, line4, line5, line6, line7, line8, line9,
+                         line10, line11, line12, line13, line14, line15, line16])
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
     # Make a face.
