@@ -113,7 +113,8 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
     return parts
 
 
-def ntype_connector_stub(pin_length=20e-3, ring_length=2e-3, rotation=(0, 0, 0), location=(0, 0, 0)):
+def ntype_connector_stub(pin_length=20e-3, ring_length=2e-3, rotation=(0, 0, 0), location=(0, 0, 0),
+                         rotate_around_zero=(0, 0, 0)):
     # Reference plane is the lower side of the ceramic (vacuum side down).
     # pin_length is the length from the base of the ceramic into the vacuum.
     input_parameters = {'pin_radius': 3E-3 / 2, 'pin_length': pin_length,
@@ -145,5 +146,9 @@ def ntype_connector_stub(pin_length=20e-3, ring_length=2e-3, rotation=(0, 0, 0),
 
     shell_lower = shell_lower1_1.cut(shell_lower2_1)
 
+    rotate_at(shp=shell_lower,
+              rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
+    rotate_at(shp=pin1,
+              rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
     parts = {'pin': pin1, 'outer': shell_lower}
     return parts
