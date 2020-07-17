@@ -2,7 +2,7 @@
 import FreeCAD, FreeCADGui
 import Part, Mesh, MeshPart
 from FreeCAD import Base
-from math import pi, asin, sqrt, sin, cos, tan
+from math import pi, asin, sqrt, sin, cos, tan, atan
 import copy
 import os
 
@@ -216,42 +216,131 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     return wire1, face1
 
 
-def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length):
+def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length, blend_radius=0):
     """ Creates a wire outline of an arc.
 
         Args:
             arc_inner_radius (float): Radius of the inside edge of the arc.
             arc_outer_radius (float): Radius of the outside edge of the arc.
-            arc_length (float): The length of teh arc (measured in angle in radians)
+            arc_length (float): The length of the arc (measured in angle in radians)
+            blend_radius (float): The amount to smooth the edges.
 
         Returns:
             wire1 (FreeCAD wire definition): An outline description of the shape.
             face1 (FreeCAD face definition): A surface description of the shape.
         """
 
-    half_angle = arc_length / 2. # angles are in radian here
-    h_extent = sin(half_angle)
-    v_extent = cos(half_angle)
+    half_angle = arc_length / 2.  # angles are in radian here
+    ho = arc_outer_radius * sin(half_angle)
+    hi = arc_inner_radius * sin(half_angle)
+    vo = arc_outer_radius * cos(half_angle)
+    vi = arc_inner_radius * cos(half_angle)
+
     # Create vector points for the ends and midpoint of the arcs
-    v1 = Base.Vector(0, -arc_outer_radius * h_extent, arc_outer_radius * v_extent)
-    v2 = Base.Vector(0, 0, arc_outer_radius)
-    v3 = Base.Vector(0, arc_outer_radius * h_extent, arc_outer_radius * v_extent)
-    v4 = Base.Vector(0,  -arc_inner_radius * h_extent, arc_inner_radius * v_extent)
-    v5 = Base.Vector(0, 0, arc_inner_radius)
-    v6 = Base.Vector(0,  arc_inner_radius * h_extent, arc_inner_radius * v_extent)
+    p1 = Base.Vector(0, -ho, vo)
+    p2 = Base.Vector(0, ho, vo)
+    p3 = Base.Vector(0,  -hi, vi)
+    p4 = Base.Vector(0,  hi, vi)
+    cp1 = Base.Vector(0, 0, arc_outer_radius)
+    cp2 = Base.Vector(0, 0, arc_inner_radius)
 
-    # Create curves
-    arc1 = Part.Arc(v1, v2, v3)
-    arc1_edge = arc1.toShape()
-    arc2 = Part.Arc(v6, v5, v4)
-    arc2_edge = arc2.toShape()
+    if blend_radius != 0:
+        bh = blend_radius * cos(pi/4)
+        bv = blend_radius * sin(pi/4)
+        hdiff = abs(ho - hi)
+        vdiff = abs(vo - vi)
+        line_angle = atan(vdiff / hdiff)
+        line_length = sqrt(hdiff**2 + vdiff**2)
+        hp = blend_radius * cos(line_angle)
+        vp = blend_radius * sin(line_angle)
+        hap = blend_radius * cos(pi/2 - line_angle)
+        vap = blend_radius * sin(pi / 2 - line_angle)
+        hcp = blend_radius * cos(-pi/4 - line_angle)
+        vcp = blend_radius * sin(-pi / 4 - line_angle)
+        R = sqrt(blend_radius**2 + blend_radius**2)
+        hm1 = (R-blend_radius) * sin(-pi/4 - line_angle + pi)
+        vm1 = (R-blend_radius) * cos(-pi/4 - line_angle + pi)
+        hm2 = (R-blend_radius) * sin(-pi / 4 - line_angle)
+        vm2 = (R-blend_radius) * cos(-pi / 4 - line_angle)
+        hm3 = (R-blend_radius) * sin(-pi/2 - line_angle)
+        vm3 = (R-blend_radius) * cos(-pi/2 - line_angle)
+        chdiff = abs(hp + hap)
+        cvdiff = abs(vp - vap)
+        cline_angle = atan(cvdiff / chdiff)
+        cline_length = sqrt(chdiff ** 2 + cvdiff ** 2)
+        hmp2 = cline_length/2 * cos(cline_angle)
+        hcp2 = blend_radius * cos(cline_angle + pi/4.)
+        hcp3 = blend_radius * cos(cline_angle - pi / 4.)
+        vmp2 = cline_length / 2 * sin(cline_angle)
+        vcp2 = blend_radius * sin(cline_angle + pi / 4.)
+        vcp3 = blend_radius * sin(cline_angle - pi / 4.)
+        hp11 = -ho + hp
+        hp12 = -ho + hap
+        hp21 = ho - hap
+        hp22 = ho - hp
+        hp31 = -hi + hap
+        hp32 = -hi - hp
+        hp41 = hi + hp
+        hp42 = hi - hap
+        vp11 = vo - vp
+        vp12 = vo + vap
+        vp21 = vo + vap
+        vp22 = vo - vp
+        vp31 = vi + vap
+        vp32 = vi + vp
+        vp41 = vi + vp
+        vp42 = vi + vap
+        p1_1 = Base.Vector(0, hp11, vp11)
+        p1_2 = Base.Vector(0, hp12, vp12)
+        p2_1 = Base.Vector(0, hp21, vp21)
+        p2_2 = Base.Vector(0, hp22, vp22)
+        p3_1 = Base.Vector(0, hp31, vp31)
+        p3_2 = Base.Vector(0, hp32, vp32)
+        p4_1 = Base.Vector(0, hp41, vp41)
+        p4_2 = Base.Vector(0, hp42, vp42)
+        # cp1_1 = Base.Vector(0, hp11 + hmp2 - hcp2, vp11 + vmp2 + vcp2)
+        # cp2_1 = Base.Vector(0, hp22 - hmp2 + hcp2, vp22 + vmp2 + vcp2)
+        cp1_1 = Base.Vector(0, -ho + hm1, vo - vm1 )
+        cp2_1 = Base.Vector(0, ho + hm2  , vo + vm2)
+        cp3_1 = Base.Vector(0, -hi - hm3 , vi - vm3 )
+        cp4_1 = Base.Vector(0, hi + hm3 , vi - vm3 )
+        # temp extra lines
+        line3 = Part.LineSegment(p1_1, cp1_1)
+        line4 = Part.LineSegment(cp1_1, p1_2)
+        line5 = Part.LineSegment(p2_1, cp2_1)
+        line6 = Part.LineSegment(cp2_1, p2_2)
+        line7 = Part.LineSegment(p3_1, cp3_1)
+        line8 = Part.LineSegment(cp3_1, p3_2)
+        line9 = Part.LineSegment(p4_1, cp4_1)
+        line10 = Part.LineSegment(cp4_1, p4_2)
+        # Create curves
+        arc1 = Part.Arc(p1_2, cp1, p2_1)
+        arc2 = Part.Arc(p4_2, cp2, p3_1)
+        arcp1 = Part.Arc(p1_1, cp1_1, p1_2)
+        arcp2 = Part.Arc(p2_1, cp2_1, p2_2)
+        arcp3 = Part.Arc(p3_1, cp3_1, p3_2)
+        arcp4 = Part.Arc(p4_1, cp4_1, p4_2)
 
-    # Create lines
-    line1 = Part.LineSegment(v3, v6)
-    line2 = Part.LineSegment(v4, v1)
+        # Create lines
+        line1 = Part.LineSegment(p2_2, p4_1)
+        line2 = Part.LineSegment(p3_2, p1_1)
 
-    # Make a shape
-    shape1 = Part.Shape([arc1, line1, arc2, line2])
+        # Make a shape
+        shape1 = Part.Shape([arc1, arcp2, line1, arcp4, arc2, arcp3, line2, arcp1])
+        # shape1 = Part.Shape([arc1, line5, line6, line1, line9, line10, arc2, line7, line8, line2, line3, line4])
+
+    else:
+        # Create curves
+        arc1 = Part.Arc(p1, cp1, p2)
+        arc2 = Part.Arc(p4, cp2, p3)
+
+        # Create lines
+        line1 = Part.LineSegment(p2, p4)
+        line2 = Part.LineSegment(p3, p1)
+
+        # Make a shape
+        shape1 = Part.Shape([arc1, line1, arc2, line2])
+
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
     # Make a face.
@@ -283,7 +372,7 @@ def make_arched_base_aperture(aperture_height, aperture_width, arc_radius):
     line3 = Part.LineSegment(v2, v3)
     # Create curves
     arc1 = Part.Arc(v3, cv1, v4)
-    arc1_edge = arc1.toShape()
+    # arc1_edge = arc1.toShape()
     # Make a shape
     shape1 = Part.Shape([line1, line2, line3, arc1])
     # Make a wire outline.
@@ -319,9 +408,94 @@ def make_arched_base_trapezoid_aperture(aperture_height, base_width, top_width, 
     line3 = Part.LineSegment(v2, v3)
     # Create curves
     arc1 = Part.Arc(v3, cv1, v4)
-    arc1_edge = arc1.toShape()
+    # arc1_edge = arc1.toShape()
     # Make a shape
     shape1 = Part.Shape([line1, line2, line3, arc1])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+
+    return wire1, face1
+
+
+def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_radius=0):
+    """ Creates a wire outline of a cylinder with inserts to a smaller cylinder for part of the radius.
+
+        Args:
+            outer_radius (float): Radius main cylinder.
+            inner_radius (float): Radius of the inner surface of the inserts.
+            insert_angle (float): Angle the inserts cover (each insert is 2*angle)
+            blend_radius (float): The amount to smooth the edges.
+
+        Returns:
+            wire1 (FreeCAD wire definition): An outline description of the shape.
+            face1 (FreeCAD face definition): A surface description of the shape.
+        """
+    # Create the initial four vertices where line meets curve.
+    ho = outer_radius * cos(insert_angle)
+    hi = inner_radius * cos(insert_angle)
+    vo = outer_radius * sin(insert_angle)
+    vi = inner_radius * sin(insert_angle)
+    bh = blend_radius * cos(insert_angle)
+    bv = blend_radius * sin(insert_angle)
+
+    p1 = Base.Vector(0, ho, vo)
+    p2 = Base.Vector(0, -ho, vo)
+    p3 = Base.Vector(0, -hi, vi)
+    p4 = Base.Vector(0, -hi, -vi)
+    p5 = Base.Vector(0, -ho, -vo)
+    p6 = Base.Vector(0, ho, -vo)
+    p7 = Base.Vector(0, hi, -vi)
+    p8 = Base.Vector(0, hi, vi)
+    cp1 = Base.Vector(0, 0, outer_radius)
+    cp3 = Base.Vector(0, 0, -outer_radius)
+    cp2 = Base.Vector(0, -inner_radius, 0)
+    cp4 = Base.Vector(0, inner_radius, 0)
+
+    if blend_radius != 0:
+        p3_1 = Base.Vector(0, -hi - bh, vi + bv)
+        cp3_1 = Base.Vector(0, -hi - bh/2, vi)
+        p3_2 = Base.Vector(0, -hi - bh/2, vi - bv)
+        p4_1 = Base.Vector(0, -hi - bh/2, -vi + bv)
+        cp4_1 = Base.Vector(0, -hi - bh / 2, -vi)
+        p4_2 = Base.Vector(0, -hi - bh, -vi - bv)
+        p8_1 = Base.Vector(0, hi + bh, vi + bv)
+        cp8_1 = Base.Vector(0, hi + bh/2, vi)
+        p8_2 = Base.Vector(0, hi + bh/2, vi - bv)
+        p7_1 = Base.Vector(0, hi + bh/2, -vi + bv)
+        cp7_1 = Base.Vector(0, hi + bh / 2, -vi)
+        p7_2 = Base.Vector(0, hi + bh, -vi - bv)
+        # Create lines
+        line1 = Part.LineSegment(p2, p3_1)
+        line2 = Part.LineSegment(p4_2, p5)
+        line3 = Part.LineSegment(p6, p7_2)
+        line4 = Part.LineSegment(p8_1, p1)
+        # Create curves
+        arc1 = Part.Arc(p1, cp1, p2)
+        arc3 = Part.Arc(p5, cp3, p6)
+        arc2 = Part.Arc(p4_1, cp2, p3_2)
+        arc4 = Part.Arc(p8_2, cp4, p7_1)
+        arc3_1 = Part.Arc(p3_1, cp3_1, p3_2)
+        arc4_1 = Part.Arc(p4_1, cp4_1, p4_2)
+        arc7_1 = Part.Arc(p7_1, cp7_1, p7_2)
+        arc8_1 = Part.Arc(p8_1, cp8_1, p8_2)
+        # Make a shape
+        shape1 = Part.Shape([arc4, arc8_1, line4, arc1, line1, arc3_1, arc2, arc4_1, line2, arc3, line3, arc7_1])
+    else:
+        # Create lines
+        line1 = Part.LineSegment(p2, p3)
+        line2 = Part.LineSegment(p4, p5)
+        line3 = Part.LineSegment(p6, p7)
+        line4 = Part.LineSegment(p8, p1)
+        # Create curves
+        arc1 = Part.Arc(p1, cp1, p2)
+        arc3 = Part.Arc(p5, cp3, p6)
+        arc2 = Part.Arc(p4, cp2, p3)
+        arc4 = Part.Arc(p8, cp4, p7)
+        # Make a shape
+        shape1 = Part.Shape([arc4, line4, arc1, line1, arc2, line2, arc3, line3])
+
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
     # Make a face.
@@ -342,7 +516,7 @@ def make_circular_aperture(aperture_radius):
             face1 (FreeCAD face definition): A surface description of the shape.
         """
     # Create curves
-    curve1 = Part.Circle(Base.Vector(0, 0,0), Base.Vector(1, 0, 0), aperture_radius)
+    curve1 = Part.Circle(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0), aperture_radius)
     arc1 = Part.Arc(curve1, 0., 2 * pi)  # angles are in radian here
     
     # Make a shape
@@ -578,7 +752,40 @@ def rotate_at(shp, loc=(0, 0, 0), rotation_angles=(0, 0, 0)):
     return shp
 
 
-def generate_output_files(root_loc, model_name, parts_list, input_parameters, tag, mesh_resolution=5, just_cad=0):
+def clean_stl(stl_object):
+    ncycles = 5
+    for cycles in range(ncycles):
+        fixed_normals = stl_object.harmonizeNormals()
+        fixed_facets = stl_object.removeDuplicatedFacets()
+        fixed_points = stl_object.removeDuplicatedPoints()
+        # fixed_manifolds = stl_object.removeNonManifolds()
+        fixed_indicies = stl_object.fixIndices()
+        fixed_degenerations = stl_object.fixDegenerations(0.00000) #  Use 1um resolution
+        # fixed_folds = stl_object.removeFoldsOnSurface()
+        # fixed_intersections = stl_object.fixSelfIntersections()
+        # print('Fixed normals', fixed_normals)
+        # print('Fixed manifolds', fixed_manifolds)
+        # print('fixed indicies', fixed_indicies)
+        # print('fixed degenerations', fixed_degenerations)
+        # print('fixed surface folds', fixed_folds)
+        # print('fixed duplicated facets', fixed_facets)
+        # print('fixed duplicated points', fixed_points)
+        # print('fixed self intersections', fixed_intersections)
+        # status = [fixed_normals, fixed_manifolds, fixed_indicies, fixed_degenerations,
+        #           fixed_folds, fixed_facets, fixed_points, fixed_intersections]
+        # new_status = [True for i in status if i is None]
+        # if len(status) == len(new_status):
+        #     print('Nothing to fix')
+        #     return
+        # elif cycles == ncycles - 1:
+        #     print('Max number of cycles reached')
+        #     return
+        # else:
+        #     print('One more loop')
+
+
+def generate_output_files(root_loc, model_name, parts_list, input_parameters, tag, solvertype='standard',
+                          mesh_resolution=5, just_cad=0):
     """Takes the dictionary of parts, converts them to meshes.
     Saves the resulting meshes in both binary and ascii STL format. (ECHO needs binary, GdfidL needs ASCII).
      Also saves the Geometry in a freeCAD document.
@@ -589,6 +796,7 @@ def generate_output_files(root_loc, model_name, parts_list, input_parameters, ta
             parts_list (dict): dictionary of shapes used to construct the model.
             input_parameters (dict): dictionary of input parameters used to make the model.
             tag (str): Unique identifier string for a particular model iteration.
+            solvertype(str): selects which meshing solver to use (standard or netgen).
             mesh_resolution (int): the resolution of hte meshing (equivalent to the Fineness parameter in meshFromShape)
             just_cad(int): selects if the STL files are generated. Early in the design it can be useful to turn them off
     """
@@ -605,19 +813,36 @@ def generate_output_files(root_loc, model_name, parts_list, input_parameters, ta
     part_labels = parts_list.keys()
     for part in part_labels:
         part_name = '-'.join([model_name, part])
-        myObject = doc.addObject("Part::Feature", part_name)
-        myObject.Shape = parts_list[part]
+        my_object = doc.addObject("Part::Feature", part_name)
+        my_object.Shape = parts_list[part]
     doc.recompute()
-    doc.saveAs(os.path.join(output_loc, ''.join([model_name, '_', tag, '.FCStd'])))
+    # Saving to a short named temp file then doing an OS rename in order to avoid path length limitation issues
+    # when saving the temp file.
+    doc.saveAs(os.path.join(output_loc, ''.join(['A', '.FCStd'])))
+    outfilename = os.path.join(output_loc, ''.join([model_name, '_', tag, '.FCStd']))
+    if os.path.exists(outfilename):
+        os.remove(outfilename)
+    os.rename(os.path.join(output_loc, ''.join(['A', '.FCStd'])), outfilename)
 
     if just_cad == 0:
         for part in part_labels:
             part_name = '-'.join([model_name, part])
             # Generate a mesh from the shape.
             mesh_name = ''.join([part_name, ' (Meshed)'])
-            #  Using the netgen mesher
-            m1 = MeshPart.meshFromShape(Shape=parts_list[part], GrowthRate=0.1, SegPerEdge=mesh_resolution,
-                                        SegPerRadius=mesh_resolution, SecondOrder=0, Optimize=1, AllowQuad=0)
+            print(''.join(['generating STL mesh for ', mesh_name]))
+            if solvertype == 'netgen':
+                # Using the netgen mesher
+                m1 = MeshPart.meshFromShape(Shape=parts_list[part], GrowthRate=0.1, SegPerEdge=mesh_resolution,
+                                            SegPerRadius=mesh_resolution, SecondOrder=0, Optimize=1, AllowQuad=0)
+            elif solvertype == 'standard':
+                # Using standard mesher
+                m1 = MeshPart.meshFromShape(Shape=parts_list[part], LinearDeflection=0.01, AngularDeflection=0.0174533,
+                                            Relative=True)
+            else:
+                raise ValueError('solver type should be netgen or standard')
+
+            clean_stl(m1)
+
             mymesh = doc.addObject("Mesh::Feature", "Mesh")
             mymesh.Mesh = m1
             mymesh.Label = mesh_name
@@ -625,9 +850,16 @@ def generate_output_files(root_loc, model_name, parts_list, input_parameters, ta
 
     FreeCAD.closeDocument(document_name)
 
-    parameter_file_name = ''.join([model_name, '_', tag, '_parameters.txt'])
-    param_file = open(os.path.join(output_loc, parameter_file_name), 'w')
+    paramfilename = os.path.join(output_loc, 'A.txt')
+    parameter_file_name = os.path.join(output_loc, ''.join([model_name, '_', tag, '_parameters.txt']))
+    if os.path.exists(paramfilename):
+        os.remove(paramfilename)
+    if os.path.exists(parameter_file_name):
+        os.remove(parameter_file_name)
+
+    param_file = open(paramfilename, 'w')
     for name, value in input_parameters.items():
         param_file.write(''.join([name, ' : ', str(value), '\n']))
     param_file.close()
 
+    os.rename(paramfilename, parameter_file_name)
