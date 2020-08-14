@@ -1,23 +1,28 @@
 # This has to run using the FreeCAD built in python interpreter.
 import FreeCAD, FreeCADGui
 import Part, Mesh, MeshPart
-from FreeCAD import Base
-from math import pi, asin, sqrt, sin, cos, tan, atan
+from FreeCAD import Base, Units
+from math import pi, asin, sqrt, sin, cos, tan, atan, radians
 import copy
 import os
+import sys
 
 
 class ModelException(Exception):
     """ This is to enable errors generated during the modelling to be separately dealt with, 
     compared to the other coding errors
     """
-    pass
+    def __init__(self, e):
+        ex_type, ex_value, ex_traceback = sys.exc_info()
+        print("Exception type : %s " % ex_type.__name__)
+        print("Exception message : %s" % ex_value)
 
 
-def base_model(model_function, input_params, output_path, accuracy=2, just_cad=0):
+def base_model(model_name, model_function, input_params, output_path, accuracy=2, just_cad=0):
     """Takes the INPUT_PARAMETERS dictionary as a base. It generates a model based on those inputs.
 
         Args:
+            model_name (str): Name of the current model.
             model_function (function handle): The handle of the specific model being used.
             input_params (dict): A dictionary containing the names and values of teh input parameters of the model.
             output_path (str): The location all the output files will be written to.
@@ -27,34 +32,37 @@ def base_model(model_function, input_params, output_path, accuracy=2, just_cad=0
     inputs = copy.copy(input_params)   # To ensure the base settings are unchanged between sweeps.
     output_loc = copy.copy(output_path)
     try:
-        parts_list, model_name = model_function(inputs)
+        parts_list = model_function(inputs)
         generate_output_files(output_loc, model_name, parts_list, inputs, tag='Base', mesh_resolution=accuracy,
                               just_cad=just_cad)
     except ModelException as e:
         print('Problem with base model ', '\n\t', e)
 
 
-def parameter_sweep(model_function, input_params, output_path, sweep_variable, sweep_vals, accuracy=5, just_cad=0):
+def parameter_sweep(model_name, model_function, input_params, output_path, sweep_variable, sweep_vals, accuracy=5,
+                    just_cad=0):
     """Takes the INPUT_PARAMETERS dictionary as a base. Then changes the requested input variable in a sequence.
         For each iteration it generates a model.
 
         Args:
+            model_name (str): Name of the current model.
             model_function (function handle): The handle of the specific model being used.
             input_params (dict): A dictionary containing the names and values of teh input parameters of the model.
             output_path (str): The location all the output files will be written to.
             sweep_variable (str): Name found in the input_params dictionary.
-            sweep_vals (list): A list of valuse for the swept parameter to take.
+            sweep_vals (list): A list of values for the swept parameter to take.
             accuracy (int): Represents the fineness of teh mesh. bigger number = finer mesh
             just_cad(int): selects if the STL files are generated. Early in the design it can be useful to turn them off
 
             """
     if sweep_variable not in input_params:
         raise ValueError('The variable to be swept does not exist in the input parameters dictionary.')
-    inputs = copy.copy(input_params)   # To ensure the base settings are unchanged between sweeps.
-    for inputs[sweep_variable] in sweep_vals:
+    for sweep_val in sweep_vals:
+        inputs = copy.copy(input_params)  # To ensure the base settings are unchanged between sweeps.
+        inputs[sweep_variable] = sweep_val
         # Replacing . with p to prevent problems with filename parsing
         value_string = str(inputs[sweep_variable]).replace('.', 'p')
-        value_string = value_string.replace(' ', '_')
+        value_string = value_string.replace(' ', '')
         value_string = value_string.replace(',', '')
         value_string = value_string.replace('[', '')
         value_string = value_string.replace(']', '')
@@ -62,7 +70,7 @@ def parameter_sweep(model_function, input_params, output_path, sweep_variable, s
 
         model_tag = ''.join([sweep_variable, '_sweep_value_', value_string])
         try:
-            parts_list, model_name = model_function(inputs)
+            parts_list = model_function(inputs)
             generate_output_files(copy.copy(output_path), model_name, parts_list, inputs, tag=model_tag,
                                   mesh_resolution=accuracy, just_cad=just_cad)
         except ModelException as e:
@@ -216,7 +224,7 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     return wire1, face1
 
 
-def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length, blend_radius=0):
+def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length, blend_radius=Units.Quantity('0 mm')):
     """ Creates a wire outline of an arc.
 
         Args:
@@ -231,10 +239,10 @@ def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length, blend_radi
         """
 
     half_angle = arc_length / 2.  # angles are in radian here
-    ho = arc_outer_radius * sin(half_angle)
-    hi = arc_inner_radius * sin(half_angle)
-    vo = arc_outer_radius * cos(half_angle)
-    vi = arc_inner_radius * cos(half_angle)
+    ho = arc_outer_radius * sin(radians(half_angle))
+    hi = arc_inner_radius * sin(radians(half_angle))
+    vo = arc_outer_radius * cos(radians(half_angle))
+    vi = arc_inner_radius * cos(radians(half_angle))
 
     # Create vector points for the ends and midpoint of the arcs
     p1 = Base.Vector(0, -ho, vo)
@@ -257,13 +265,13 @@ def make_arc_aperture(arc_inner_radius, arc_outer_radius, arc_length, blend_radi
         vap = blend_radius * sin(pi / 2 - line_angle)
         hcp = blend_radius * cos(-pi/4 - line_angle)
         vcp = blend_radius * sin(-pi / 4 - line_angle)
-        R = sqrt(blend_radius**2 + blend_radius**2)
-        hm1 = (R-blend_radius) * sin(-pi/4 - line_angle + pi)
-        vm1 = (R-blend_radius) * cos(-pi/4 - line_angle + pi)
-        hm2 = (R-blend_radius) * sin(-pi / 4 - line_angle)
-        vm2 = (R-blend_radius) * cos(-pi / 4 - line_angle)
-        hm3 = (R-blend_radius) * sin(-pi/2 - line_angle)
-        vm3 = (R-blend_radius) * cos(-pi/2 - line_angle)
+        R = Units.Quantity(sqrt(blend_radius**2 + blend_radius**2), Units.Unit(1)) # Setting units to mm
+        hm1 = (R- blend_radius) * sin(-pi/4 - line_angle + pi)
+        vm1 = (R- blend_radius) * cos(-pi/4 - line_angle + pi)
+        hm2 = (R- blend_radius) * sin(-pi / 4 - line_angle)
+        vm2 = (R- blend_radius) * cos(-pi / 4 - line_angle)
+        hm3 = (R- blend_radius) * sin(-pi/2 - line_angle)
+        vm3 = (R- blend_radius) * cos(-pi/2 - line_angle)
         chdiff = abs(hp + hap)
         cvdiff = abs(vp - vap)
         cline_angle = atan(cvdiff / chdiff)
@@ -419,7 +427,7 @@ def make_arched_base_trapezoid_aperture(aperture_height, base_width, top_width, 
     return wire1, face1
 
 
-def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_radius=0):
+def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_radius=Units.Quantity('0 mm')):
     """ Creates a wire outline of a cylinder with inserts to a smaller cylinder for part of the radius.
 
         Args:
@@ -433,12 +441,12 @@ def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_r
             face1 (FreeCAD face definition): A surface description of the shape.
         """
     # Create the initial four vertices where line meets curve.
-    ho = outer_radius * cos(insert_angle)
-    hi = inner_radius * cos(insert_angle)
-    vo = outer_radius * sin(insert_angle)
-    vi = inner_radius * sin(insert_angle)
-    bh = blend_radius * cos(insert_angle)
-    bv = blend_radius * sin(insert_angle)
+    ho = outer_radius * cos(radians(insert_angle))
+    hi = inner_radius * cos(radians(insert_angle))
+    vo = outer_radius * sin(radians(insert_angle))
+    vi = inner_radius * sin(radians(insert_angle))
+    bh = blend_radius * cos(radians(insert_angle))
+    bv = blend_radius * sin(radians(insert_angle))
 
     p1 = Base.Vector(0, ho, vo)
     p2 = Base.Vector(0, -ho, vo)
@@ -454,34 +462,52 @@ def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_r
     cp4 = Base.Vector(0, inner_radius, 0)
 
     if blend_radius != 0:
+        p1_1 = Base.Vector(0, ho - bh, vo - bv)
+        cp1_1 = Base.Vector(0, ho - bh / 1.8, vo)
+        p1_2 = Base.Vector(0, ho - bh, vo + bv)
+        p2_1 = Base.Vector(0, -ho + bh, vo + bv)
+        cp2_1 = Base.Vector(0, -ho + bh / 1.8, vo)
+        p2_2 = Base.Vector(0, -ho + bh, vo - bv)
         p3_1 = Base.Vector(0, -hi - bh, vi + bv)
-        cp3_1 = Base.Vector(0, -hi - bh/2, vi)
-        p3_2 = Base.Vector(0, -hi - bh/2, vi - bv)
-        p4_1 = Base.Vector(0, -hi - bh/2, -vi + bv)
-        cp4_1 = Base.Vector(0, -hi - bh / 2, -vi)
+        cp3_1 = Base.Vector(0, -hi - bh / 2.5, vi)
+        p3_2 = Base.Vector(0, -hi - bh / 2, vi - bv)
+        p4_1 = Base.Vector(0, -hi - bh / 2, -vi + bv)
+        cp4_1 = Base.Vector(0, -hi - bh / 2.5, -vi)
         p4_2 = Base.Vector(0, -hi - bh, -vi - bv)
-        p8_1 = Base.Vector(0, hi + bh, vi + bv)
-        cp8_1 = Base.Vector(0, hi + bh/2, vi)
-        p8_2 = Base.Vector(0, hi + bh/2, vi - bv)
-        p7_1 = Base.Vector(0, hi + bh/2, -vi + bv)
-        cp7_1 = Base.Vector(0, hi + bh / 2, -vi)
-        p7_2 = Base.Vector(0, hi + bh, -vi - bv)
+        p5_1 = Base.Vector(0, -ho + bh, -vo + bv)
+        cp5_1 = Base.Vector(0, -ho + bh / 1.8, -vo)
+        p5_2 = Base.Vector(0, -ho + bh, -vo - bv)
+        p6_1 = Base.Vector(0, ho - bh, -vo - bv)
+        cp6_1 = Base.Vector(0, ho - bh / 1.8, -vo)
+        p6_2 = Base.Vector(0, ho - bh, -vo + bv)
+        p7_1 = Base.Vector(0, hi + bh, -vi - bv)
+        cp7_1 = Base.Vector(0, hi + bh / 2.5, -vi)
+        p7_2 = Base.Vector(0, hi + bh/2, -vi + bv)
+        p8_1 = Base.Vector(0, hi + bh/2, vi - bv)
+        cp8_1 = Base.Vector(0, hi + bh/ 2.5, vi)
+        p8_2 = Base.Vector(0, hi + bh, vi + bv)
+
         # Create lines
-        line1 = Part.LineSegment(p2, p3_1)
-        line2 = Part.LineSegment(p4_2, p5)
-        line3 = Part.LineSegment(p6, p7_2)
-        line4 = Part.LineSegment(p8_1, p1)
-        # Create curves
-        arc1 = Part.Arc(p1, cp1, p2)
-        arc3 = Part.Arc(p5, cp3, p6)
-        arc2 = Part.Arc(p4_1, cp2, p3_2)
-        arc4 = Part.Arc(p8_2, cp4, p7_1)
+        line1 = Part.LineSegment(p2_2, p3_1)
+        line2 = Part.LineSegment(p4_2, p5_1)
+        line3 = Part.LineSegment(p6_2, p7_1)
+        line4 = Part.LineSegment(p8_2, p1_1)
+        # Create main curves
+        arc1 = Part.Arc(p1_2, cp1, p2_1)
+        arc3 = Part.Arc(p5_2, cp3, p6_1)
+        arc2 = Part.Arc(p3_2, cp2, p4_1)
+        arc4 = Part.Arc(p7_2, cp4, p8_1)
+        # Create blending curves
+        arc1_1 = Part.Arc(p1_1, cp1_1, p1_2)
+        arc2_1 = Part.Arc(p2_1, cp2_1, p2_2)
         arc3_1 = Part.Arc(p3_1, cp3_1, p3_2)
         arc4_1 = Part.Arc(p4_1, cp4_1, p4_2)
+        arc5_1 = Part.Arc(p5_1, cp5_1, p5_2)
+        arc6_1 = Part.Arc(p6_1, cp6_1, p6_2)
         arc7_1 = Part.Arc(p7_1, cp7_1, p7_2)
         arc8_1 = Part.Arc(p8_1, cp8_1, p8_2)
         # Make a shape
-        shape1 = Part.Shape([arc4, arc8_1, line4, arc1, line1, arc3_1, arc2, arc4_1, line2, arc3, line3, arc7_1])
+        shape1 = Part.Shape([arc4, arc8_1, line4, arc1_1, arc1, arc2_1, line1, arc3_1, arc2, arc4_1, line2, arc5_1, arc3, arc6_1, line3, arc7_1])
     else:
         # Create lines
         line1 = Part.LineSegment(p2, p3)
@@ -760,7 +786,7 @@ def clean_stl(stl_object):
         fixed_points = stl_object.removeDuplicatedPoints()
         # fixed_manifolds = stl_object.removeNonManifolds()
         fixed_indicies = stl_object.fixIndices()
-        fixed_degenerations = stl_object.fixDegenerations(0.00000) #  Use 1um resolution
+        fixed_degenerations = stl_object.fixDegenerations(0.00000)
         # fixed_folds = stl_object.removeFoldsOnSurface()
         # fixed_intersections = stl_object.fixSelfIntersections()
         # print('Fixed normals', fixed_normals)
