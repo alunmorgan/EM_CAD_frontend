@@ -1,7 +1,7 @@
-from FreeCAD_geometry_generation.freecad_elements import make_beampipe, make_circular_aperture, make_arc_aperture,\
-     rotate_at
-
-from FreeCAD import Base
+from FreeCAD_geometry_generation.freecad_elements import make_beampipe, make_arc_aperture,\
+     rotate_at, make_taper
+from math import pi
+from FreeCAD import Base, Units
 import Part
 
 
@@ -36,9 +36,9 @@ def sma_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
                                                  location[2]),
                                      Base.Vector(rotation[0], rotation[1], rotation[2]))
     shell_middle1 = Part.makeCylinder(input_parameters['shell_upper_radius'],
-                                     input_parameters['ceramic_thickness'],
-                                     Base.Vector(location[0], location[1], location[2]),
-                                     Base.Vector(rotation[0], rotation[1], rotation[2]))
+                                      input_parameters['ceramic_thickness'],
+                                      Base.Vector(location[0], location[1], location[2]),
+                                      Base.Vector(rotation[0], rotation[1], rotation[2]))
     shell_lower1 = Part.makeCylinder(input_parameters['shell_lower_radius'], input_parameters['shell_lower_thickness'],
                                      Base.Vector(location[0], location[1] - input_parameters['shell_lower_thickness'],
                                                  location[2]),
@@ -90,9 +90,9 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
                                                  location[2]),
                                      Base.Vector(rotation[0], rotation[1], rotation[2]))
     shell_middle1 = Part.makeCylinder(input_parameters['shell_upper_radius'],
-                                     input_parameters['ceramic_thickness'],
-                                     Base.Vector(location[0], location[1], location[2]),
-                                     Base.Vector(rotation[0], rotation[1], rotation[2]))
+                                      input_parameters['ceramic_thickness'],
+                                      Base.Vector(location[0], location[1], location[2]),
+                                      Base.Vector(rotation[0], rotation[1], rotation[2]))
     shell_lower1 = Part.makeCylinder(input_parameters['shell_lower_radius'], input_parameters['shell_lower_thickness'],
                                      Base.Vector(location[0], location[1] - input_parameters['shell_lower_thickness'],
                                                  location[2]),
@@ -113,13 +113,14 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
     return parts
 
 
-def ntype_connector_stub(pin_length=20e-3, ring_length=2e-3, rotation=(0, 0, 0), location=(0, 0, 0),
+def ntype_connector_stub(pin_length=Units.Quantity('20 mm'), ring_length=Units.Quantity('2 mm'),
+                         rotation=(0, 0, 0), location=(0, 0, 0),
                          rotate_around_zero=(0, 0, 0)):
     # Reference plane is the lower side of the ceramic (vacuum side down).
     # pin_length is the length from the base of the ceramic into the vacuum.
-    input_parameters = {'pin_radius': 3E-3 / 2, 'pin_length': pin_length,
-                        'shell_lower_radius': 9e-3 / 2, 'shell_lower_thickness': ring_length,
-                        'shell_lower_inner_radius': 8.03e-3 / 2
+    input_parameters = {'pin_radius': Units.Quantity('3 mm') / 2, 'pin_length': pin_length,
+                        'shell_lower_radius': Units.Quantity('9 mm') / 2, 'shell_lower_thickness': ring_length,
+                        'shell_lower_inner_radius': Units.Quantity('8.03 mm') / 2
                         }
 
     pin = Part.makeCylinder(input_parameters['pin_radius'], input_parameters['pin_length'],
@@ -152,3 +153,76 @@ def ntype_connector_stub(pin_length=20e-3, ring_length=2e-3, rotation=(0, 0, 0),
               rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
     parts = {'pin': pin1, 'outer': shell_lower}
     return parts
+
+
+def make_stripline_feedthrough(input_parameters, z_loc='us', xyrotation=0):
+    stripline_mid_section_length = input_parameters['total_stripline_length'] - \
+                                   2 * input_parameters['stripline_taper_length']
+    # total_cavity_length is the total stipline length plus the additional cavity length at each end.
+    total_cavity_length = input_parameters['total_stripline_length'] + \
+                          2 * input_parameters['additional_cavity_length']
+    # Calculating the joining point of the outer conductor to the taper.
+    n_type_outer_radius = Units.Quantity('9 mm') / 2.
+    port_offset = input_parameters['total_stripline_length'] / 2. - input_parameters['feedthrough_offset']
+    feedthrough_outer_x = port_offset + n_type_outer_radius
+    feedthrough_outer_y = input_parameters['cavity_radius'] - \
+                          (input_parameters['cavity_radius'] - input_parameters['pipe_radius']) / \
+                          (total_cavity_length / 2. - stripline_mid_section_length / 2.) * \
+                          feedthrough_outer_x
+    # Pin stops half way through the stripline.
+    pin_length = input_parameters['cavity_radius'] - input_parameters['stripline_offset'] + \
+                 input_parameters['pipe_thickness'] - input_parameters['stripline_thickness'] / 2.
+    ring_start_y = input_parameters['cavity_radius'] + input_parameters['pipe_thickness']
+    ring_length = ring_start_y - feedthrough_outer_y + Units.Quantity('2 mm')
+    if z_loc == 'us':
+        z = -1
+    elif z_loc == 'ds':
+        z = 1
+    else:
+        raise ValueError
+    n_parts = ntype_connector_stub(pin_length=pin_length, ring_length=ring_length,
+                                    location=(z * port_offset, ring_start_y, 0),
+                                    rotation=(0, 0, 0), rotate_around_zero=(xyrotation, 0, 0))
+    n_type_outer_inner_radius = Units.Quantity('8.03 mm') / 2.
+    feedthrough_vaccum_length = input_parameters['cavity_radius'] + input_parameters['pipe_thickness']
+    feedthrough_vaccum = Part.makeCylinder(n_type_outer_inner_radius, feedthrough_vaccum_length,
+                                            Base.Vector(z * port_offset, 0, 0),
+                                            Base.Vector(0, -1, 0))
+    rotate_at(shp=feedthrough_vaccum,
+              rotation_angles=(xyrotation, 0, 0))
+    return n_parts, feedthrough_vaccum
+
+
+def make_stripline(input_parameters, xyrotation=0):
+    stripline_mid_section_length = input_parameters['total_stripline_length'] - \
+                                   2 * input_parameters['stripline_taper_length']
+    stripline_main_wire, stripline_main_face = \
+        make_arc_aperture(arc_inner_radius=input_parameters['stripline_offset'],
+                          arc_outer_radius=input_parameters['stripline_offset'] +
+                                           input_parameters['stripline_thickness'],
+                          arc_length=input_parameters['stripline_width'],
+                          blend_radius=Units.Quantity('0.75 mm'))
+    stripline_taper_end_wire, stripline_taper_end_face = \
+        make_arc_aperture(arc_inner_radius=input_parameters['stripline_offset'],
+                          arc_outer_radius=input_parameters['stripline_offset'] +
+                                           input_parameters['stripline_thickness'],
+                          arc_length=input_parameters['stripline_taper_end_width'],
+                          blend_radius=Units.Quantity('0.75 mm'))
+
+    stripline_main = make_beampipe(pipe_aperture=stripline_main_face,
+                                   pipe_length=stripline_mid_section_length,
+                                   loc=(0, 0, 0))
+    stripline_taper_us = make_taper(aperture1=stripline_taper_end_wire,
+                                    aperture2=stripline_main_wire,
+                                    taper_length=input_parameters['stripline_taper_length'],
+                                    loc=(-input_parameters['stripline_taper_length'] -
+                                         stripline_mid_section_length / 2., 0, 0))
+    stripline_taper_ds = make_taper(aperture1=stripline_main_wire,
+                                    aperture2=stripline_taper_end_wire,
+                                    taper_length=input_parameters['stripline_taper_length'],
+                                    loc=(stripline_mid_section_length / 2., 0, 0))
+    stripline = stripline_main.fuse(stripline_taper_us)
+    stripline = stripline.fuse(stripline_taper_ds)
+    rotate_at(shp=stripline,
+              rotation_angles=(xyrotation, 0, 0))
+    return stripline
