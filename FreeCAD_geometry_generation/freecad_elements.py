@@ -530,6 +530,108 @@ def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_r
     return wire1, face1
 
 
+def make_spoked_cylinder(outer_radius, inner_radius, insert_angle, blend_radius=Units.Quantity('0 mm')):
+    """ Creates a wire outline of a cylinder with inserts to a smaller cylinder for part of the radius.
+
+        Args:
+            outer_radius (float): Radius main cylinder.
+            inner_radius (float): Radius of the inner surface of the inserts.
+            insert_angle (float): Angle the inserts cover (each insert is 2*angle)
+            blend_radius (float): The amount to smooth the edges.
+
+        Returns:
+            wire1 (FreeCAD wire definition): An outline description of the shape.
+            face1 (FreeCAD face definition): A surface description of the shape.
+        """
+    # Create the initial four vertices where line meets curve.
+    ho = outer_radius * cos(radians(insert_angle))
+    hi = inner_radius * cos(radians(insert_angle))
+    vo = outer_radius * sin(radians(insert_angle))
+    vi = inner_radius * sin(radians(insert_angle))
+    bh = blend_radius * cos(radians(insert_angle))
+    bv = blend_radius * sin(radians(insert_angle))
+
+    p1 = Base.Vector(0, ho, vo)
+    p2 = Base.Vector(0, -ho, vo)
+    p3 = Base.Vector(0, -hi, vi)
+    p4 = Base.Vector(0, -hi, -vi)
+    p5 = Base.Vector(0, -ho, -vo)
+    p6 = Base.Vector(0, ho, -vo)
+    p7 = Base.Vector(0, hi, -vi)
+    p8 = Base.Vector(0, hi, vi)
+    cp1 = Base.Vector(0, 0, outer_radius)
+    cp3 = Base.Vector(0, 0, -outer_radius)
+    cp2 = Base.Vector(0, -inner_radius, 0)
+    cp4 = Base.Vector(0, inner_radius, 0)
+
+    if blend_radius != 0:
+        p1_1 = Base.Vector(0, ho - bh, vo - bv)
+        cp1_1 = Base.Vector(0, ho - bh / 1.8, vo)
+        p1_2 = Base.Vector(0, ho - bh, vo + bv)
+        p2_1 = Base.Vector(0, -ho + bh, vo + bv)
+        cp2_1 = Base.Vector(0, -ho + bh / 1.8, vo)
+        p2_2 = Base.Vector(0, -ho + bh, vo - bv)
+        p3_1 = Base.Vector(0, -hi - bh, vi + bv)
+        cp3_1 = Base.Vector(0, -hi - bh / 2.5, vi)
+        p3_2 = Base.Vector(0, -hi - bh / 2, vi - bv)
+        p4_1 = Base.Vector(0, -hi - bh / 2, -vi + bv)
+        cp4_1 = Base.Vector(0, -hi - bh / 2.5, -vi)
+        p4_2 = Base.Vector(0, -hi - bh, -vi - bv)
+        p5_1 = Base.Vector(0, -ho + bh, -vo + bv)
+        cp5_1 = Base.Vector(0, -ho + bh / 1.8, -vo)
+        p5_2 = Base.Vector(0, -ho + bh, -vo - bv)
+        p6_1 = Base.Vector(0, ho - bh, -vo - bv)
+        cp6_1 = Base.Vector(0, ho - bh / 1.8, -vo)
+        p6_2 = Base.Vector(0, ho - bh, -vo + bv)
+        p7_1 = Base.Vector(0, hi + bh, -vi - bv)
+        cp7_1 = Base.Vector(0, hi + bh / 2.5, -vi)
+        p7_2 = Base.Vector(0, hi + bh/2, -vi + bv)
+        p8_1 = Base.Vector(0, hi + bh/2, vi - bv)
+        cp8_1 = Base.Vector(0, hi + bh/ 2.5, vi)
+        p8_2 = Base.Vector(0, hi + bh, vi + bv)
+
+        # Create lines
+        line1 = Part.LineSegment(p2_2, p3_1)
+        line2 = Part.LineSegment(p4_2, p5_1)
+        line3 = Part.LineSegment(p6_2, p7_1)
+        line4 = Part.LineSegment(p8_2, p1_1)
+        # Create main curves
+        arc1 = Part.Arc(p1_2, cp1, p2_1)
+        arc3 = Part.Arc(p5_2, cp3, p6_1)
+        arc2 = Part.Arc(p3_2, cp2, p4_1)
+        arc4 = Part.Arc(p7_2, cp4, p8_1)
+        # Create blending curves
+        arc1_1 = Part.Arc(p1_1, cp1_1, p1_2)
+        arc2_1 = Part.Arc(p2_1, cp2_1, p2_2)
+        arc3_1 = Part.Arc(p3_1, cp3_1, p3_2)
+        arc4_1 = Part.Arc(p4_1, cp4_1, p4_2)
+        arc5_1 = Part.Arc(p5_1, cp5_1, p5_2)
+        arc6_1 = Part.Arc(p6_1, cp6_1, p6_2)
+        arc7_1 = Part.Arc(p7_1, cp7_1, p7_2)
+        arc8_1 = Part.Arc(p8_1, cp8_1, p8_2)
+        # Make a shape
+        shape1 = Part.Shape([arc4, arc8_1, line4, arc1_1, arc1, arc2_1, line1, arc3_1, arc2, arc4_1, line2, arc5_1, arc3, arc6_1, line3, arc7_1])
+    else:
+        # Create lines
+        line1 = Part.LineSegment(p2, p3)
+        line2 = Part.LineSegment(p4, p5)
+        line3 = Part.LineSegment(p6, p7)
+        line4 = Part.LineSegment(p8, p1)
+        # Create curves
+        arc1 = Part.Arc(p1, cp1, p2)
+        arc3 = Part.Arc(p5, cp3, p6)
+        arc2 = Part.Arc(p4, cp2, p3)
+        arc4 = Part.Arc(p8, cp4, p7)
+        # Make a shape
+        shape1 = Part.Shape([arc4, line4, arc1, line1, arc2, line2, arc3, line3])
+
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+
+    return wire1, face1
+
 def make_circular_aperture(aperture_radius):
     """ Creates a wire outline of a circle.
         aperture_radius is the radius of the circle

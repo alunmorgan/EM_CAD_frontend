@@ -151,7 +151,7 @@ def ntype_connector_stub(pin_length=Units.Quantity('20 mm'), ring_length=Units.Q
               rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
     rotate_at(shp=pin1,
               rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
-    parts = {'pin': pin1, 'outer': shell_lower}
+    parts = {'pin': pin1, 'outer': shell_lower, 'vac': shell_lower2_1}
     return parts
 
 
