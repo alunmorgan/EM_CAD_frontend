@@ -373,14 +373,13 @@ def make_arched_base_aperture(aperture_height, aperture_width, arc_radius):
     v2 = Base.Vector(0, aperture_height / 2., aperture_width / 2.)
     v3 = Base.Vector(0, -aperture_height / 2., aperture_width / 2.)
     v4 = Base.Vector(0, -aperture_height / 2., -aperture_width / 2.)
-    cv1 = Base.Vector(0, -aperture_height / 2. + arc_radius - sqrt(arc_radius ** 2 - (aperture_width ** 2) / 4), 0)
+    cv1 = Base.Vector(0, -aperture_height / 2. + arc_radius - Units.Quantity(sqrt(arc_radius ** 2 - (aperture_width ** 2) / 4), 1), 0)
     # Create lines
     line1 = Part.LineSegment(v4, v1)
     line2 = Part.LineSegment(v1, v2)
     line3 = Part.LineSegment(v2, v3)
     # Create curves
     arc1 = Part.Arc(v3, cv1, v4)
-    # arc1_edge = arc1.toShape()
     # Make a shape
     shape1 = Part.Shape([line1, line2, line3, arc1])
     # Make a wire outline.
