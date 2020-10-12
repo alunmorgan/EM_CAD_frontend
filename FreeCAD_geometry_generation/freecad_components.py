@@ -114,8 +114,9 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
 
 
 def ntype_connector_stub(pin_length=Units.Quantity('20 mm'), ring_length=Units.Quantity('2 mm'),
-                         rotation=(0, 0, 0), location=(0, 0, 0),
-                         rotate_around_zero=(0, 0, 0)):
+                         rotation=(Units.Quantity('0 deg'), Units.Quantity('0 deg'), Units.Quantity('0 deg')),
+                         location=(Units.Quantity('0 mm'), Units.Quantity('0 mm'), Units.Quantity('0 mm')),
+                         rotate_around_zero=(Units.Quantity('0 deg'), Units.Quantity('0 deg'), Units.Quantity('0 deg'))):
     # Reference plane is the lower side of the ceramic (vacuum side down).
     # pin_length is the length from the base of the ceramic into the vacuum.
     input_parameters = {'pin_radius': Units.Quantity('3 mm') / 2, 'pin_length': pin_length,
@@ -151,8 +152,32 @@ def ntype_connector_stub(pin_length=Units.Quantity('20 mm'), ring_length=Units.Q
               rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
     rotate_at(shp=pin1,
               rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
+    rotate_at(shp=shell_lower2_1,
+              rotation_angles=(rotate_around_zero[0], rotate_around_zero[1], rotate_around_zero[2]))
     parts = {'pin': pin1, 'outer': shell_lower, 'vac': shell_lower2_1}
     return parts
+
+
+def make_nose(aperture_radius, ring_width, ring_length, blend,
+              loc=(Units.Quantity('0 mm'), Units.Quantity('0 mm'), Units.Quantity('0 mm')),
+              rot=(Units.Quantity('0 deg'), Units.Quantity('0 deg'), Units.Quantity('0 deg'))):
+    inner = Part.makeCylinder(aperture_radius, ring_length - ring_width / 2., Base.Vector(loc), Base.Vector(1, 0, 0))
+    outer = Part.makeCylinder(aperture_radius + ring_width, ring_length - ring_width / 2., Base.Vector(loc), Base.Vector(1, 0, 0))
+    blending = Part.makeCylinder(aperture_radius + ring_width + blend,  blend,
+                                 Base.Vector(loc), Base.Vector(1, 0, 0))
+    ring = outer.cut(inner)
+    blend_ring = blending.cut(outer)
+    nose_tip = Part.makeTorus(aperture_radius + ring_width / 2., ring_width / 2.,
+                              Base.Vector(loc[0] + ring_length - ring_width / 2., loc[1], loc[2]),
+                              Base.Vector(1, 0, 0))
+    blend_curve = Part.makeTorus(aperture_radius + ring_width + blend, blend,
+                              Base.Vector(loc[0] + blend, loc[1], loc[2]),
+                              Base.Vector(1, 0, 0))
+    nose = ring.fuse(nose_tip)
+    nose = nose.fuse(blend_ring)
+    nose = nose.cut(blend_curve)
+    nose = rotate_at(nose, loc=loc, rotation_angles=rot)
+    return nose
 
 
 def make_stripline_feedthrough(input_parameters, z_loc='us', xyrotation=0):
