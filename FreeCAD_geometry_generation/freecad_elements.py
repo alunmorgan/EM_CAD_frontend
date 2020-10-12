@@ -2,7 +2,7 @@
 import FreeCAD, FreeCADGui
 import Part, Mesh, MeshPart
 from FreeCAD import Base, Units
-from math import pi, asin, sqrt, sin, cos, tan, atan, radians
+from math import pi, asin, sqrt, sin, cos, tan, atan, radians, atan2, degrees
 import copy
 import os
 import sys
@@ -150,9 +150,9 @@ def make_racetrack_aperture(aperture_height, aperture_width):
 
 
 def make_rectangle_aperture(aperture_height, aperture_width):
-    """ Creates a wire outline of a symmetric racetrack.
-        aperture_height and aperture_width are the full height and width (the same as if it were a rectangle).
-        The end curves are defined as 180 degree arcs.
+    """ Creates a wire outline of a rectangle.
+        aperture_height and aperture_width are the full height and width.
+
 
         Args:
             aperture_height (float): Total height of the aperture
@@ -529,13 +529,14 @@ def make_cylinder_with_inserts(outer_radius, inner_radius, insert_angle, blend_r
     return wire1, face1
 
 
-def make_spoked_cylinder(outer_radius, inner_radius, insert_angle, blend_radius=Units.Quantity('0 mm')):
+def make_spoked_cylinder(outer_radius, inner_radius, insert_angles, spoke_extents,  blend_radius=Units.Quantity('0 mm')):
     """ Creates a wire outline of a cylinder with inserts to a smaller cylinder for part of the radius.
 
         Args:
             outer_radius (float): Radius main cylinder.
             inner_radius (float): Radius of the inner surface of the inserts.
-            insert_angle (float): Angle the inserts cover (each insert is 2*angle)
+            insert_angles (list): Angle the at the centre of each spoke
+            spoke_extents (list): Angular extent of each spoke
             blend_radius (float): The amount to smooth the edges.
 
         Returns:
@@ -543,86 +544,56 @@ def make_spoked_cylinder(outer_radius, inner_radius, insert_angle, blend_radius=
             face1 (FreeCAD face definition): A surface description of the shape.
         """
     # Create the initial four vertices where line meets curve.
-    ho = outer_radius * cos(radians(insert_angle))
-    hi = inner_radius * cos(radians(insert_angle))
-    vo = outer_radius * sin(radians(insert_angle))
-    vi = inner_radius * sin(radians(insert_angle))
-    bh = blend_radius * cos(radians(insert_angle))
-    bv = blend_radius * sin(radians(insert_angle))
-
-    p1 = Base.Vector(0, ho, vo)
-    p2 = Base.Vector(0, -ho, vo)
-    p3 = Base.Vector(0, -hi, vi)
-    p4 = Base.Vector(0, -hi, -vi)
-    p5 = Base.Vector(0, -ho, -vo)
-    p6 = Base.Vector(0, ho, -vo)
-    p7 = Base.Vector(0, hi, -vi)
-    p8 = Base.Vector(0, hi, vi)
-    cp1 = Base.Vector(0, 0, outer_radius)
-    cp3 = Base.Vector(0, 0, -outer_radius)
-    cp2 = Base.Vector(0, -inner_radius, 0)
-    cp4 = Base.Vector(0, inner_radius, 0)
-
-    if blend_radius != 0:
-        p1_1 = Base.Vector(0, ho - bh, vo - bv)
-        cp1_1 = Base.Vector(0, ho - bh / 1.8, vo)
-        p1_2 = Base.Vector(0, ho - bh, vo + bv)
-        p2_1 = Base.Vector(0, -ho + bh, vo + bv)
-        cp2_1 = Base.Vector(0, -ho + bh / 1.8, vo)
-        p2_2 = Base.Vector(0, -ho + bh, vo - bv)
-        p3_1 = Base.Vector(0, -hi - bh, vi + bv)
-        cp3_1 = Base.Vector(0, -hi - bh / 2.5, vi)
-        p3_2 = Base.Vector(0, -hi - bh / 2, vi - bv)
-        p4_1 = Base.Vector(0, -hi - bh / 2, -vi + bv)
-        cp4_1 = Base.Vector(0, -hi - bh / 2.5, -vi)
-        p4_2 = Base.Vector(0, -hi - bh, -vi - bv)
-        p5_1 = Base.Vector(0, -ho + bh, -vo + bv)
-        cp5_1 = Base.Vector(0, -ho + bh / 1.8, -vo)
-        p5_2 = Base.Vector(0, -ho + bh, -vo - bv)
-        p6_1 = Base.Vector(0, ho - bh, -vo - bv)
-        cp6_1 = Base.Vector(0, ho - bh / 1.8, -vo)
-        p6_2 = Base.Vector(0, ho - bh, -vo + bv)
-        p7_1 = Base.Vector(0, hi + bh, -vi - bv)
-        cp7_1 = Base.Vector(0, hi + bh / 2.5, -vi)
-        p7_2 = Base.Vector(0, hi + bh/2, -vi + bv)
-        p8_1 = Base.Vector(0, hi + bh/2, vi - bv)
-        cp8_1 = Base.Vector(0, hi + bh/ 2.5, vi)
-        p8_2 = Base.Vector(0, hi + bh, vi + bv)
-
-        # Create lines
-        line1 = Part.LineSegment(p2_2, p3_1)
-        line2 = Part.LineSegment(p4_2, p5_1)
-        line3 = Part.LineSegment(p6_2, p7_1)
-        line4 = Part.LineSegment(p8_2, p1_1)
-        # Create main curves
-        arc1 = Part.Arc(p1_2, cp1, p2_1)
-        arc3 = Part.Arc(p5_2, cp3, p6_1)
-        arc2 = Part.Arc(p3_2, cp2, p4_1)
-        arc4 = Part.Arc(p7_2, cp4, p8_1)
-        # Create blending curves
-        arc1_1 = Part.Arc(p1_1, cp1_1, p1_2)
-        arc2_1 = Part.Arc(p2_1, cp2_1, p2_2)
-        arc3_1 = Part.Arc(p3_1, cp3_1, p3_2)
-        arc4_1 = Part.Arc(p4_1, cp4_1, p4_2)
-        arc5_1 = Part.Arc(p5_1, cp5_1, p5_2)
-        arc6_1 = Part.Arc(p6_1, cp6_1, p6_2)
-        arc7_1 = Part.Arc(p7_1, cp7_1, p7_2)
-        arc8_1 = Part.Arc(p8_1, cp8_1, p8_2)
-        # Make a shape
-        shape1 = Part.Shape([arc4, arc8_1, line4, arc1_1, arc1, arc2_1, line1, arc3_1, arc2, arc4_1, line2, arc5_1, arc3, arc6_1, line3, arc7_1])
-    else:
-        # Create lines
-        line1 = Part.LineSegment(p2, p3)
-        line2 = Part.LineSegment(p4, p5)
-        line3 = Part.LineSegment(p6, p7)
-        line4 = Part.LineSegment(p8, p1)
-        # Create curves
-        arc1 = Part.Arc(p1, cp1, p2)
-        arc3 = Part.Arc(p5, cp3, p6)
-        arc2 = Part.Arc(p4, cp2, p3)
-        arc4 = Part.Arc(p8, cp4, p7)
-        # Make a shape
-        shape1 = Part.Shape([arc4, line4, arc1, line1, arc2, line2, arc3, line3])
+    model_points = []
+    model_edges = []
+    tk = 0
+    ck = 0
+    for dn in range(len(insert_angles)):
+        a1 = radians(insert_angles[dn] - spoke_extents[dn] / 2.)
+        h1 = inner_radius * cos(a1)
+        v1 = inner_radius * sin(a1)
+        model_points.append(Base.Vector(0, h1, v1))
+        if dn > 0:
+            model_edges.append(Part.Arc(model_points[tk-2], model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        ck = ck + 1
+        a2 = radians(insert_angles[dn] - spoke_extents[dn] / 2.)
+        h2 = outer_radius * cos(a2)
+        v2 = outer_radius * sin(a2)
+        model_points.append(Base.Vector(0, h2, v2))
+        model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        ck = ck + 1
+        a3 = radians(insert_angles[dn])
+        h3 = outer_radius * cos(a3)
+        v3 = outer_radius * sin(a3)
+        model_points.append(Base.Vector(0, h3, v3))
+        tk = tk + 1
+        a4 = radians(insert_angles[dn] + spoke_extents[dn] / 2.)
+        h4 = outer_radius * cos(a4)
+        v4 = outer_radius * sin(a4)
+        model_points.append(Base.Vector(0, h4, v4))
+        model_edges.append(Part.Arc(model_points[tk-2], model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        ck = ck + 1
+        a5 = radians(insert_angles[dn] + spoke_extents[dn] / 2.)
+        h5 = inner_radius * cos(a5)
+        v5 = inner_radius * sin(a5)
+        model_points.append(Base.Vector(0, h5, v5))
+        model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        ck = ck + 1
+        if dn == len(insert_angles) -1:
+            a6 = radians(insert_angles[dn] + (insert_angles[0] - insert_angles[dn]) / 2. - Units.Quantity('180deg'))
+        else:
+            a6 = radians(insert_angles[dn] + (insert_angles[dn + 1] - insert_angles[dn]) / 2.)
+        h6 = inner_radius * cos(a6)
+        v6 = inner_radius * sin(a6)
+        model_points.append(Base.Vector(0, h6, v6))
+        if dn == len(insert_angles) - 1:
+            model_edges.append(Part.Arc(model_points[tk - 1], model_points[tk], model_points[0]))
+        tk = tk + 1
+    shape1 = Part.Shape(model_edges)
 
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
@@ -630,6 +601,129 @@ def make_spoked_cylinder(outer_radius, inner_radius, insert_angle, blend_radius=
     face1 = Part.Face(wire1)
 
     return wire1, face1
+
+
+def make_cylinder_with_tags(outer_radius, inner_radius, insert_angles, tag_widths):
+    """ Creates a wire outline of a cylinder with inserts to a smaller cylinder for part of the radius.
+
+        Args:
+            outer_radius (float): Radius main cylinder.
+            inner_radius (float): Radius of the inner surface of the inserts.
+            insert_angles (list): Angle the at the centre of each spoke
+            tag_widths (list): extent of each tag
+
+        Returns:
+            wire1 (FreeCAD wire definition): An outline description of the shape.
+            face1 (FreeCAD face definition): A surface description of the shape.
+        """
+    # Create the initial four vertices where line meets curve.
+    model_points = []
+    model_edges = []
+    tk = 0
+    for dn in range(len(insert_angles)):
+        d1 = inner_radius - Units.Quantity(sqrt(inner_radius * inner_radius - (tag_widths[dn] * tag_widths[dn]) / 4.), 1)
+        d2 = outer_radius - Units.Quantity(sqrt(outer_radius * outer_radius - (tag_widths[dn] * tag_widths[dn]) / 4.), 1)
+        top_corner_height = outer_radius - d2
+        bottom_corner_height = inner_radius - d1
+        h1, v1 = rotate_cartesian(tag_widths[dn] / 2., bottom_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h1, v1))
+        if dn > 0:
+            model_edges.append(Part.ArcOfCircle(model_points[tk-2], model_points[tk-1], model_points[tk]))
+            model_edges[-1] = force_short_arc(p1=model_points[tk - 2], p2=model_points[tk - 1], edge=model_edges[-1])
+        tk = tk + 1
+        h2, v2 = rotate_cartesian(tag_widths[dn] / 2., top_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h2, v2))
+        model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        h3 = outer_radius * sin(-radians(insert_angles[dn]))
+        v3 = outer_radius * cos(-radians(insert_angles[dn]))
+        model_points.append(Base.Vector(0, h3, v3))
+        tk = tk + 1
+        h4, v4 = rotate_cartesian(-tag_widths[dn] / 2., top_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h4, v4))
+        model_edges.append(Part.ArcOfCircle(model_points[tk-2], model_points[tk-1], model_points[tk]))
+        model_edges[-1] = force_short_arc(p1=model_points[tk-2], p2=model_points[tk-1], edge=model_edges[-1])
+        tk = tk + 1
+        h5, v5 = rotate_cartesian(-tag_widths[dn] / 2., bottom_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h5, v5))
+        model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        if dn == len(insert_angles) - 1:
+            a6 = radians(insert_angles[dn] + (- insert_angles[dn] + insert_angles[0]) / 2. + Units.Quantity('180deg'))
+        else:
+            a6 = radians(insert_angles[dn] + (insert_angles[dn + 1] - insert_angles[dn]) / 2.)
+        h6 = inner_radius * sin(-a6)
+        v6 = inner_radius * cos(-a6)
+        model_points.append(Base.Vector(0, h6, v6))
+        if dn == len(insert_angles) - 1:
+            model_edges.append(Part.ArcOfCircle(model_points[tk - 1], model_points[tk], model_points[0]))
+            # model_edges[-1] = force_short_arc(p1=model_points[tk - 2], p2=model_points[tk - 1], edge=model_edges[-1])
+        tk = tk + 1
+        # print('h',dn+1,'=[ ', h1, h2, h3, h4, h5, h6,'];')
+        # print('v',dn+1,'=[ ', v1, v2, v3, v4, v5, v6,'];')
+
+    shape1 = Part.Shape(model_edges)
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
+
+def make_polygon_with_tags(inner_radius, tag_radii, insert_angles, tag_widths):
+    """ Creates a wire outline of a cylinder with inserts to a smaller cylinder for part of the radius.
+
+        Args:
+            tag_radii (list): Radius of each tag.
+            inner_radius (float): Radius of the inner surface of the inserts.
+            insert_angles (list): Angle the at the centre of each spoke
+            tag_widths (list): extent of each tag
+
+        Returns:
+            wire1 (FreeCAD wire definition): An outline description of the shape.
+            face1 (FreeCAD face definition): A surface description of the shape.
+        """
+    # Create the initial four vertices where line meets curve.
+    model_points = []
+    model_edges = []
+    tk = 0
+    for dn in range(len(insert_angles)):
+        d1 = inner_radius - Units.Quantity(sqrt(inner_radius * inner_radius - (tag_widths[dn] * tag_widths[dn]) / 4.), 1)
+        d2 = tag_radii[dn] - Units.Quantity(sqrt(tag_radii[dn] * tag_radii[dn] - (tag_widths[dn] * tag_widths[dn]) / 4.), 1)
+        top_corner_height = tag_radii[dn] - d2
+        bottom_corner_height = inner_radius - d1
+        h1, v1 = rotate_cartesian(tag_widths[dn] / 2., bottom_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h1, v1))
+        if dn > 0:
+            model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        h2, v2 = rotate_cartesian(tag_widths[dn] / 2., top_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h2, v2))
+        model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        h3 = tag_radii[dn] * sin(-radians(insert_angles[dn]))
+        v3 = tag_radii[dn] * cos(-radians(insert_angles[dn]))
+        model_points.append(Base.Vector(0, h3, v3))
+        tk = tk + 1
+        h4, v4 = rotate_cartesian(-tag_widths[dn] / 2., top_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h4, v4))
+        model_edges.append(Part.ArcOfCircle(model_points[tk-2], model_points[tk-1], model_points[tk]))
+        model_edges[-1] = force_short_arc(p1=model_points[tk-2], p2=model_points[tk-1], edge=model_edges[-1])
+        tk = tk + 1
+        h5, v5 = rotate_cartesian(-tag_widths[dn] / 2., bottom_corner_height, insert_angles[dn])
+        model_points.append(Base.Vector(0, h5, v5))
+        model_edges.append(Part.LineSegment(model_points[tk-1], model_points[tk]))
+        tk = tk + 1
+        if dn == len(insert_angles) - 1:
+            model_edges.append(Part.LineSegment(model_points[tk-1], model_points[0]))
+
+    shape1 = Part.Shape(model_edges)
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
 
 def make_circular_aperture(aperture_radius):
     """ Creates a wire outline of a circle.
@@ -860,6 +954,23 @@ def make_taper(aperture1, aperture2, taper_length, loc=(0, 0, 0), rotation_angle
     # Returning the aperture to it's original location so that it is where other functions expect.
     aperture2.translate(Base.Vector(-taper_length, 0, 0))
     return taper
+
+
+def force_short_arc(p1, p2, edge):
+    edge.parameter(p1), edge.FirstParameter
+    edge.parameter(p2), edge.LastParameter
+    if edge.LastParameter - edge.FirstParameter > pi:
+        edge = Part.ArcOfCircle(edge.Circle, edge.LastParameter, 2 * pi + edge.FirstParameter)
+    return edge
+
+
+def rotate_cartesian(x, y, angle):
+    r = Units.Quantity(sqrt(x * x + y * y), 1)  # Forcing length units
+    a = atan2(y, x)
+    a2 = a + radians(angle)
+    x_out = r * cos(a2)
+    y_out = r * sin(a2)
+    return x_out, y_out
 
 
 def rotate_at(shp, loc=(0, 0, 0), rotation_angles=(0, 0, 0)):
