@@ -66,6 +66,7 @@ def parameter_sweep(model_name, model_function, input_params, output_path, sweep
         value_string = value_string.replace(',', '')
         value_string = value_string.replace('[', '')
         value_string = value_string.replace(']', '')
+        value_string = value_string.replace('\'', '')
         value_string = value_string.replace('-', 'm')
 
         model_tag = ''.join([sweep_variable, '_sweep_value_', value_string])
