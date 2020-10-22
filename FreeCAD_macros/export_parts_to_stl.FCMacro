@@ -1,0 +1,57 @@
+import FreeCAD
+from pivy import coin
+from copy import copy
+import Mesh
+import MeshPart
+import os
+clip=coin.SoClipPlane()
+
+mesh_resolution=5
+doc_name = Gui.ActiveDocument.Document.Label
+parts = []
+for obj in FreeCAD.ActiveDocument.Objects:
+    parts.append(obj.Label)
+
+# from https://stackoverflow.com/questions/18715688/find-common-substring-between-two-strings
+def common_start(sa, sb):
+    """ returns the longest common substring from the beginning of sa and sb """
+    def _iter():
+        for a, b in zip(sa, sb):
+            if a == b:
+                yield a
+            else:
+                return
+
+    return ''.join(_iter())
+
+for n in range(len(parts)-1):
+    test = common_start(parts[0], parts[n + 1])
+    if n == 0:
+        head = copy(test)
+        print(head)
+    else:
+        if len(head) > len(test):
+            head = copy(test)
+            print(head)
+
+
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    a = obj.Name
+    b = obj.Label
+    if b == "X_Axis" or   b == "Y_Axis"  or b == "Z_Axis" or  b == "XY_Plane" or  b == "XZ_Plane" or  b == "YZ_Plane" or  b == "Origin" or b == "component1|vessel":
+        continue
+    if "(Meshed)" in b:
+        continue
+    __part__=FreeCAD.ActiveDocument.getObject(a)    
+    __shape__=__part__.Shape.copy(False)
+#    m1 = MeshPart.meshFromShape(Shape=__shape__, GrowthRate=0.1, SegPerEdge=mesh_resolution, SegPerRadius=mesh_resolution, SecondOrder=0, Optimize=1, AllowQuad=0)
+    m1 = MeshPart.meshFromShape(Shape=__shape__, LinearDeflection=0.01, AngularDeflection=0.0174533,  Relative=True)
+    mymesh =FreeCAD.ActiveDocument.addObject("Mesh::Feature","Mesh")
+    mymesh.Mesh = m1
+    mymesh.Label = b + "(Meshed)"
+    root_path = FreeCAD.ActiveDocument.FileName
+    out_path, _1 = os.path.split(root_path)
+    out_name = doc_name.replace('_Base', '')
+    mymesh.Mesh.write(os.path.join(out_path, 'ascii', ''.join([out_name,'-',b, '.stl'])), "AST", b)
+    del   __part__, __shape__

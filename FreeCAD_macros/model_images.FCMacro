@@ -1,0 +1,93 @@
+import FreeCAD
+from pivy import coin
+from copy import copy
+clip=coin.SoClipPlane()
+doc_name = Gui.ActiveDocument.Document.Label
+parts = []
+for obj in FreeCAD.ActiveDocument.Objects:
+    parts.append(obj.Label)
+
+ImageSizeX_iso = 2000 # 919
+ImageSixeY_iso = 1000 # 598
+ImageSizeX_side = 2000 # 919
+ImageSixeY_side = 1250 # 598
+ImageSizeX_end = 2000 # 919
+ImageSixeY_end = 2000 # 598
+
+# from https://stackoverflow.com/questions/18715688/find-common-substring-between-two-strings
+def common_start(sa, sb):
+    """ returns the longest common substring from the beginning of sa and sb """
+    def _iter():
+        for a, b in zip(sa, sb):
+            if a == b:
+                yield a
+            else:
+                return
+
+    return ''.join(_iter())
+
+for n in range(len(parts)-1):
+    test = common_start(parts[0], parts[n + 1])
+    if n == 0:
+        head = copy(test)
+        print(head)
+    else:
+        if len(head) > len(test):
+            head = copy(test)
+            print(head)
+
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    obj.ViewObject.Visibility=False
+    if "_vac" in obj.Label:
+         obj.ViewObject.Visibility=True
+
+Gui.activeDocument().activeView().viewIsometric()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_vac.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    obj.ViewObject.Visibility=True
+    if "_vac" in obj.Label:
+         obj.ViewObject.Visibility=False
+
+Gui.activeDocument().activeView().viewRight()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_end.png',ImageSizeX_end,ImageSixeY_end,'Current')
+Gui.activeDocument().activeView().viewIsometric()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_iso.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+clip.plane.setValue(coin.SbPlane(coin.SbVec3f(-1,0,0),0)) #  set this to control the clipping plane
+Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+clip.on.setValue(True) # switch on
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_yz_cut_iso.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+Gui.activeDocument().activeView().viewRight()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_yz_cut_us_end.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+clip.on.setValue(False) # switch off
+clip.plane.setValue(coin.SbPlane(coin.SbVec3f(1,0,0),0)) #  set this to control the clipping plane
+Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+clip.on.setValue(True) # switch on
+Gui.activeDocument().activeView().viewLeft()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_yz_cut_ds_end.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+clip.on.setValue(False) # switch off
+Gui.activeDocument().activeView().viewTop()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_side.png',ImageSizeX_side,ImageSixeY_side,'Current')
+clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,0,1),0)) #  set this to control the clipping plane
+Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+clip.on.setValue(True) # switch on
+Gui.activeDocument().activeView().viewBottom()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_side_cut.png',ImageSizeX_side,ImageSixeY_side,'Current')
+clip.on.setValue(False) # switch off
+clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,0,-1),0)) #  set this to control the clipping plane
+Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+clip.on.setValue(True) # switch on
+Gui.activeDocument().activeView().viewIsometric()
+Gui.activeDocument().activeView().viewRotateLeft()
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().saveImage(doc_name+'_full_xz_cut_iso.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+clip.on.setValue(False) # switch off

@@ -1,0 +1,25 @@
+import FreeCAD
+from pivy import coin
+from copy import copy
+clip=coin.SoClipPlane()
+
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    if "vac" in obj.Label:
+        obj.ViewObject.ShapeColor = (0.33,1.00,1.00)
+        continue
+    if "pin" in obj.Label:
+        obj.ViewObject.ShapeColor = (0.33,0.33,1.00)
+        continue
+    if "cavity" in obj.Label:
+        obj.ViewObject.ShapeColor = (0.67,0.67,1.00)
+        continue
+    if "pipe" in obj.Label:
+        obj.ViewObject.ShapeColor = (0.67,0.67,0.67)
+        continue
+    if "outer" in obj.Label:
+        obj.ViewObject.ShapeColor = (0.67,0.67,1.00)
+        continue
+    if "stripline" in obj.Label:
+        obj.ViewObject.ShapeColor = (1.00,0.67,0.00)
+        continue

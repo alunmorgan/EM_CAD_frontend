@@ -1,0 +1,88 @@
+import FreeCAD
+import os
+from pivy import coin
+from copy import copy
+clip=coin.SoClipPlane()
+doc_name = Gui.ActiveDocument.Document.Label
+parts = []
+for obj in FreeCAD.ActiveDocument.Objects:
+    parts.append(obj.Label)
+
+ImageSizeX_iso = 2000 # 919
+ImageSixeY_iso = 1000 # 598
+ImageSizeX_side = 2000 # 919
+ImageSixeY_side = 1250 # 598
+ImageSizeX_end = 2000 # 919
+ImageSixeY_end = 2000 # 598
+
+# from https://stackoverflow.com/questions/18715688/find-common-substring-between-two-strings
+def common_start(sa, sb):
+    """ returns the longest common substring from the beginning of sa and sb """
+    def _iter():
+        for a, b in zip(sa, sb):
+            if a == b:
+                yield a
+            else:
+                return
+
+    return ''.join(_iter())
+
+for n in range(len(parts)-1):
+    test = common_start(parts[0], parts[n + 1])
+    if n == 0:
+        head = copy(test)
+        print(head)
+    else:
+        if len(head) > len(test):
+            head = copy(test)
+            print(head)
+
+root_path = FreeCAD.ActiveDocument.FileName
+out_path, _1 = os.path.split(root_path)
+if not os.path.exists(os.path.join(out_path,'component_images')):
+    os.mkdir(os.path.join(out_path,'component_images'))
+# Hide all objects
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    a = obj.Name
+    b = obj.Label
+    obj.ViewObject.Visibility=False
+
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    a = obj.Name
+    b = obj.Label
+    if b == "X_Axis" or   b == "Y_Axis"  or b == "Z_Axis" or  b == "XY_Plane" or  b == "XZ_Plane" or  b == "YZ_Plane" or  b == "Origin" or b == "component1|vessel":
+        continue
+    if "(Meshed)" in b:
+        continue
+    obj.ViewObject.Visibility=True
+    Gui.SendMsgToActiveView("ViewFit")
+    Gui.activeDocument().activeView().viewIsometric()
+    Gui.SendMsgToActiveView("ViewFit")
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_isometric.png'])),ImageSizeX_iso,ImageSixeY_iso,'Current')
+    clip.plane.setValue(coin.SbPlane(coin.SbVec3f(-1,0,0),0)) #  set this to control the clipping plane
+    Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+    clip.on.setValue(True) # switch on
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_isometric_Ycut.png'])),ImageSizeX_iso,ImageSixeY_iso,'Current')
+    clip.on.setValue(False) # switch off    
+    clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,1,0),0)) #  set this to control the clipping plane
+    Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+    clip.on.setValue(True) # switch on
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_isometric_Xcut.png'])),ImageSizeX_iso,ImageSixeY_iso,'Current')
+    clip.on.setValue(False) # switch off    
+    clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,0,1),0)) #  set this to control the clipping plane
+    Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+    clip.on.setValue(True) # switch on
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_isometric_Zcut.png'])),ImageSizeX_iso,ImageSixeY_iso,'Current')
+    clip.on.setValue(False) # switch off    
+    Gui.activeDocument().activeView().viewTop()
+    Gui.SendMsgToActiveView("ViewFit")
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_side.png'])), ImageSizeX_side,ImageSixeY_side,'Current')
+    Gui.activeDocument().activeView().viewFront()
+    Gui.SendMsgToActiveView("ViewFit")
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_top.png'])),ImageSizeX_side,ImageSixeY_side,'Current')
+    Gui.activeDocument().activeView().viewRight()
+    Gui.SendMsgToActiveView("ViewFit")
+    Gui.activeDocument().activeView().saveImage(os.path.join(out_path,'component_images', ''.join([doc_name,'-',b, '_end.png'])),ImageSizeX_end,ImageSixeY_end,'Current')
+    obj.ViewObject.Visibility=False
