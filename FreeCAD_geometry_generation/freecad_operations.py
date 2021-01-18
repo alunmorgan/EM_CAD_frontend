@@ -23,6 +23,19 @@ class ModelException(Exception):
         print("Exception message : %s" % ex_value)
 
 
+def breakup_lists(input_dict):
+    output_dict = {}
+    for key in input_dict:
+        if type(input_dict[key]) is list:
+            ck = 1
+            for val in input_dict[key]:
+                output_dict[key + str(ck)] = val
+                ck += 1
+        else:
+            output_dict[key] = input_dict[key]
+    return output_dict
+
+
 def base_model(
     model_name, model_function, input_params, output_path, accuracy=2, just_cad=0
 ):
@@ -42,14 +55,22 @@ def base_model(
     inputs = copy.copy(
         input_params
     )  # To ensure the base settings are unchanged between sweeps.
+    inputs_nolists = breakup_lists(
+        inputs
+    )  # If you use a variable which is a list for controlling the
+    # mesh fixed lines the code breaks.
+    # This breaks lists into separate directory entries.
+    # However you do want lists in the original inputs as this allows more flexibity
+    # in the parameter sweeps.
     output_loc = copy.copy(output_path)
     try:
         parts_list = model_function(inputs)
+
         generate_output_files(
             output_loc,
             model_name,
             parts_list,
-            inputs,
+            inputs_nolists,
             tag="Base",
             mesh_resolution=accuracy,
             just_cad=just_cad,
@@ -98,6 +119,13 @@ def parameter_sweep(
         inputs = copy.copy(
             input_params
         )  # To ensure the base settings are unchanged between sweeps.
+        inputs_nolists = breakup_lists(
+            inputs
+        )  # If you use a variable which is a list for controlling the
+        # mesh fixed lines the code breaks.
+        # This breaks lists into separate directory entries.
+        # However you do want lists in the original inputs as this allows more flexibity
+        # in the parameter sweeps.
         inputs[sweep_variable] = sweep_val
         # Replacing . with p to prevent problems with filename parsing
         value_string = str(inputs[sweep_variable]).replace(".", "p")
@@ -115,7 +143,7 @@ def parameter_sweep(
                 copy.copy(output_path),
                 model_name,
                 parts_list,
-                inputs,
+                inputs_nolists,
                 tag=model_tag,
                 mesh_resolution=accuracy,
                 just_cad=just_cad,
