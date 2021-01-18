@@ -1,7 +1,7 @@
 from math import sin
 
-import Part
-from FreeCAD import Base, Units
+# import Part
+from FreeCAD import Base, Units, Part
 
 from FreeCAD_geometry_generation.freecad_apertures import (
     make_arc_aperture,
@@ -105,22 +105,33 @@ def sma_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
     return parts
 
 
-def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
+def ntype_connector(
+    pin_length="20mm",
+    rotation=(Units.Quantity("0deg"), Units.Quantity("0deg"), Units.Quantity("0deg")),
+    location=(Units.Quantity("0mm"), Units.Quantity("0mm"), Units.Quantity("0mm")),
+):
     # Reference plane is the lower side of the ceramic (vacuum side down).
     # pin_length is the length from the base of the ceramic into the vacuum.
     input_parameters = {
-        "pin_radius": 3e-3 / 2,
+        "pin_radius": "1.5mm",
         "pin_length": pin_length,
-        "ceramic_radius": 7e-3 / 2,
-        "ceramic_thickness": 5e-3,
-        "shell_upper_radius": 16e-3 / 2,
-        "shell_upper_thickness": 10e-3,
-        "shell_upper_inner_radius": 8.03e-3 / 2,
-        "shell_lower_radius": 9e-3 / 2,
-        "shell_lower_thickness": 5e-3,
-        "shell_lower_inner_radius": 8.03e-3 / 2,
+        "ceramic_radius": "3.5mm",
+        "ceramic_thickness": "5mm",
+        "shell_upper_radius": "8mm",
+        "shell_upper_thickness": "10mm",
+        "shell_upper_inner_radius": "4.015mm",
+        "shell_lower_radius": "4.5mm",
+        "shell_lower_thickness": "5mm",
+        "shell_lower_inner_radius": "4.015mm",
     }
-
+    for n in input_parameters.keys():
+        if type(input_parameters[n]) is list:
+            for eh in range(len(input_parameters[n])):
+                input_parameters[n][eh] = Units.Quantity(input_parameters[n][eh])
+        else:
+            input_parameters[n] = Units.Quantity(input_parameters[n])
+        print(n, input_parameters[n])
+    print("Parsing complete")
     pin = Part.makeCylinder(
         input_parameters["pin_radius"],
         input_parameters["pin_length"]
@@ -129,14 +140,24 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
         Base.Vector(
             location[0], location[1] - input_parameters["pin_length"], location[2]
         ),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    pin = rotate_at(
+        shp=pin,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
 
     ceramic1 = Part.makeCylinder(
         input_parameters["ceramic_radius"],
         input_parameters["ceramic_thickness"],
         Base.Vector(location[0], location[1], location[2]),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    ceramic1 = rotate_at(
+        shp=ceramic1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
 
     shell_upper1 = Part.makeCylinder(
@@ -147,7 +168,12 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
             location[1] + input_parameters["ceramic_thickness"],
             location[2],
         ),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_upper1 = rotate_at(
+        shp=shell_upper1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
     shell_upper2 = Part.makeCylinder(
         input_parameters["shell_upper_inner_radius"],
@@ -157,13 +183,23 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
             location[1] + input_parameters["ceramic_thickness"],
             location[2],
         ),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_upper2 = rotate_at(
+        shp=shell_upper2,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
     shell_middle1 = Part.makeCylinder(
         input_parameters["shell_upper_radius"],
         input_parameters["ceramic_thickness"],
         Base.Vector(location[0], location[1], location[2]),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_middle1 = rotate_at(
+        shp=shell_middle1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
     shell_lower1 = Part.makeCylinder(
         input_parameters["shell_lower_radius"],
@@ -173,7 +209,12 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
             location[1] - input_parameters["shell_lower_thickness"],
             location[2],
         ),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_lower1 = rotate_at(
+        shp=shell_lower1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
     shell_lower2 = Part.makeCylinder(
         input_parameters["shell_lower_inner_radius"],
@@ -183,7 +224,12 @@ def ntype_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
             location[1] - input_parameters["shell_lower_thickness"],
             location[2],
         ),
-        Base.Vector(rotation[0], rotation[1], rotation[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_lower2 = rotate_at(
+        shp=shell_lower2,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
     shell_middle = shell_middle1.cut(ceramic1)
     ceramic = ceramic1.cut(pin)
