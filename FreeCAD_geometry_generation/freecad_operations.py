@@ -257,6 +257,36 @@ def make_beampipe(pipe_aperture, pipe_length, loc=(0, 0, 0), rotation_angles=(0,
     p.translate(Base.Vector(loc[0], loc[1], loc[2]))  # Move to be centred on loc
     return p
 
+def make_beampipe_from_end(pipe_aperture, pipe_length, loc=(0, 0, 0), rotation_angles=(0, 0, 0)):
+    """Takes an aperture and creates a pipe.
+    The centre of the face of aperture1 will be at loc and rotations will happen
+    about that point.
+    Assumes the aperture is initially centred on (0,0,0)
+
+        Args:
+            pipe_aperture (FreeCad wire): Outline of aperture.
+            pipe_length (float): Length of pipe.
+            loc (tuple): The co ordinates of the final location of the
+                         centre of the pipe.
+            rotation_angles (tuple) : The angles to rotate about in the three
+                                      cartesian directions.
+
+        Returns:
+            p (FreeCad shape): A model of the pipe.
+    """
+    p = pipe_aperture.extrude(Base.Vector(pipe_length, 0, 0))
+    p.rotate(
+        Base.Vector(0, 0, 0), Base.Vector(0, 0, 1), rotation_angles[2]
+    )  # Rotate around Z
+    p.rotate(
+        Base.Vector(0, 0, 0), Base.Vector(1, 0, 0), rotation_angles[0]
+    )  # Rotate around X
+    p.rotate(
+        Base.Vector(0, 0, 0), Base.Vector(0, 1, 0), rotation_angles[1]
+    )  # Rotate around Y
+    p.translate(Base.Vector(loc[0], loc[1], loc[2]))  # Move to be centred on loc
+    return p
+
 
 def make_taper(
     aperture1,
