@@ -100,16 +100,16 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     The end curves are defined as 180 degree arcs.
 
     Args:
-        pipe_radius (float): Radius of the main beam pipe.
-        keyhole_height (float): Total height of the keyhole slot.
-        keyhole_width (float): Total width of the keyhole slot.
+        pipe_radius (Base.Unit): Radius of the main beam pipe.
+        keyhole_height (Base.Unit): Total height of the keyhole slot.
+        keyhole_width (Base.Unit): Total width of the keyhole slot.
 
     Returns:
         wire1 (FreeCAD wire definition): An outline description of the shape.
         face1 (FreeCAD face definition): A surface description of the shape.
     """
     # X intersection of keyhole with pipe.
-    x_intersection = sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2)
+    x_intersection = Units.Quantity(sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2),1 )
     # Create the initial four vertices for the lines.
     v1 = Base.Vector(0, keyhole_height / 2.0, x_intersection)
     v2 = Base.Vector(
@@ -135,6 +135,54 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
 
     # Make a shape
     shape1 = Part.Shape([arc1, line1, arc2, line3])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
+def make_keyhole_aperture_flat_end(pipe_radius, keyhole_height, keyhole_width):
+    """Creates a wire outline of a circular pipe with a keyhole extension on the side.
+    aperture_height and aperture_width are the full height and width
+    (the same as if it were a rectangle).
+    The end curves are defined as 180 degree arcs.
+
+    Args:
+        pipe_radius (Base.Unit): Radius of the main beam pipe.
+        keyhole_height (Base.Unit): Total height of the keyhole slot.
+        keyhole_width (Base.Unit): Total width of the keyhole slot.
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+    # X intersection of keyhole with pipe.
+    x_intersection = Units.Quantity(sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2),1 )
+    # Create the initial four vertices for the lines.
+    v1 = Base.Vector(0, keyhole_height / 2.0, x_intersection)
+    v2 = Base.Vector(
+        0, keyhole_height / 2.0, keyhole_width
+    )
+    v3 = Base.Vector(
+        0, -keyhole_height / 2.0, keyhole_width
+    )
+    v4 = Base.Vector(0, -keyhole_height / 2.0, x_intersection)
+    v5 = Base.Vector(0, 0, x_intersection + keyhole_width)
+    # Create lines
+    line1 = Part.LineSegment(v1, v2)
+    line2 = Part.LineSegment(v2, v3)
+    line3 = Part.LineSegment(v3, v4)
+
+    # angle at which the keyhole intersects the pipe.
+    half_angle = asin(keyhole_height / (2 * pipe_radius))
+    # Create curves
+    curve1 = Part.Circle(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0), pipe_radius)
+    arc1 = Part.Arc(
+        curve1, half_angle, (2 * pi) - half_angle
+    )  # angles are in radian here
+
+    # Make a shape
+    shape1 = Part.Shape([arc1, line1, line2, line3])
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
     # Make a face.
