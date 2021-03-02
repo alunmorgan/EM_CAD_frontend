@@ -105,6 +105,147 @@ def sma_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
     return parts
 
 
+def ntype_connector50Ohm(
+    pin_length="20mm",
+    rotation=(Units.Quantity("0deg"), Units.Quantity("0deg"), Units.Quantity("0deg")),
+    location=(Units.Quantity("0mm"), Units.Quantity("0mm"), Units.Quantity("0mm")),
+    ceramic_radius = Units.Quantity("3.5mm"),
+    ceramic_thickness = Units.Quantity("5mm"),
+    shell_lower_thickness = Units.Quantity("5mm"),
+    shell_upper_thickness = Units.Quantity("10mm"),
+):
+    # Reference plane is the lower side of the ceramic (vacuum side down).
+    # pin_length is the length from the base of the ceramic into the vacuum.
+    input_parameters = {
+        "pin_radius": "1.75mm",
+        "pin_length": pin_length,
+        "ceramic_radius": ceramic_radius,
+        "ceramic_thickness": ceramic_thickness,
+        "shell_upper_radius": "8mm",
+        "shell_upper_thickness": shell_upper_thickness,
+        "shell_upper_inner_radius": "4.015mm",
+        "shell_lower_radius": "4.5mm",
+        "shell_lower_thickness": shell_lower_thickness,
+        "shell_lower_inner_radius": "4.015mm",
+    }
+    for n in input_parameters.keys():
+        if type(input_parameters[n]) is list:
+            for eh in range(len(input_parameters[n])):
+                input_parameters[n][eh] = Units.Quantity(input_parameters[n][eh])
+        else:
+            input_parameters[n] = Units.Quantity(input_parameters[n])
+        print(n, input_parameters[n])
+    print("Parsing complete")
+    pin = Part.makeCylinder(
+        input_parameters["pin_radius"],
+        input_parameters["pin_length"]
+        + input_parameters["ceramic_thickness"]
+        + input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0], location[1] - input_parameters["pin_length"], location[2]
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    pin = rotate_at(
+        shp=pin,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+
+    ceramic1 = Part.makeCylinder(
+        input_parameters["ceramic_radius"],
+        input_parameters["ceramic_thickness"],
+        Base.Vector(location[0], location[1], location[2]),
+        Base.Vector(0, 1, 0),
+    )
+    ceramic1 = rotate_at(
+        shp=ceramic1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+
+    shell_upper1 = Part.makeCylinder(
+        input_parameters["shell_upper_radius"],
+        input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] + input_parameters["ceramic_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_upper1 = rotate_at(
+        shp=shell_upper1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_upper2 = Part.makeCylinder(
+        input_parameters["shell_upper_inner_radius"],
+        input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] + input_parameters["ceramic_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_upper2 = rotate_at(
+        shp=shell_upper2,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_middle1 = Part.makeCylinder(
+        input_parameters["shell_upper_radius"],
+        input_parameters["ceramic_thickness"],
+        Base.Vector(location[0], location[1], location[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_middle1 = rotate_at(
+        shp=shell_middle1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_lower1 = Part.makeCylinder(
+        input_parameters["shell_lower_radius"],
+        input_parameters["shell_lower_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] - input_parameters["shell_lower_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_lower1 = rotate_at(
+        shp=shell_lower1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_lower2 = Part.makeCylinder(
+        input_parameters["shell_lower_inner_radius"],
+        input_parameters["shell_lower_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] - input_parameters["shell_lower_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_lower2 = rotate_at(
+        shp=shell_lower2,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_middle = shell_middle1.cut(ceramic1)
+    ceramic = ceramic1.cut(pin)
+    shell_lower3 = shell_lower1.cut(shell_lower2)
+    shell_lower = shell_lower3.fuse(shell_middle)
+    shell_upper = shell_upper1.cut(shell_upper2)
+    outer = shell_upper.fuse(shell_lower)
+
+    parts = {"pin": pin, "ceramic": ceramic, "outer": outer}
+    return parts
+
+
 def ntype_connector(
     pin_length="20mm",
     rotation=(Units.Quantity("0deg"), Units.Quantity("0deg"), Units.Quantity("0deg")),
