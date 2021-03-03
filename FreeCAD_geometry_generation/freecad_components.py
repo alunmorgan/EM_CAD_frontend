@@ -109,10 +109,15 @@ def ntype_connector50Ohm(
     pin_length="20mm",
     rotation=(Units.Quantity("0deg"), Units.Quantity("0deg"), Units.Quantity("0deg")),
     location=(Units.Quantity("0mm"), Units.Quantity("0mm"), Units.Quantity("0mm")),
-    ceramic_radius = Units.Quantity("3.5mm"),
-    ceramic_thickness = Units.Quantity("5mm"),
-    shell_lower_thickness = Units.Quantity("5mm"),
-    shell_upper_thickness = Units.Quantity("10mm"),
+    ceramic_radius=Units.Quantity("3.5mm"),
+    ceramic_thickness=Units.Quantity("5mm"),
+    shell_lower_thickness=Units.Quantity("5mm"),
+    shell_upper_thickness=Units.Quantity("10mm"),
+    rotate_around_zero=(
+        Units.Quantity("0 deg"),
+        Units.Quantity("0 deg"),
+        Units.Quantity("0 deg"),
+    ),
 ):
     # Reference plane is the lower side of the ceramic (vacuum side down).
     # pin_length is the length from the base of the ceramic into the vacuum.
@@ -160,6 +165,21 @@ def ntype_connector50Ohm(
     )
     ceramic1 = rotate_at(
         shp=ceramic1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    air1 = Part.makeCylinder(
+        input_parameters["shell_upper_inner_radius"],
+        input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] + input_parameters["ceramic_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    air1 = rotate_at(
+        shp=air1,
         loc=(location[0], location[1], location[2]),
         rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
@@ -241,8 +261,43 @@ def ntype_connector50Ohm(
     shell_lower = shell_lower3.fuse(shell_middle)
     shell_upper = shell_upper1.cut(shell_upper2)
     outer = shell_upper.fuse(shell_lower)
+    air = air1.cut(pin)
+    air = air.cut(outer)
 
-    parts = {"pin": pin, "ceramic": ceramic, "outer": outer}
+    rotate_at(
+        shp=outer,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+    rotate_at(
+        shp=ceramic,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+    rotate_at(
+        shp=air,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+    rotate_at(
+        shp=pin,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+
+    parts = {"pin": pin, "ceramic": ceramic, "outer": outer, "air": air}
     return parts
 
 
@@ -529,7 +584,68 @@ def make_nose(
     return nose
 
 
-def make_stripline_feedthrough(input_parameters, z_loc="us", xyrotation=0):
+def make_stripline_feedthrough_full(input_parameters, z_loc="us", xyrotation=0):
+    stripline_mid_section_length = (
+        input_parameters["total_stripline_length"]
+        - 2 * input_parameters["stripline_taper_length"]
+    )
+    # total_cavity_length is the total stipline length plus the additional
+    # cavity length at each end.
+    total_cavity_length = (
+        input_parameters["total_stripline_length"]
+        + 2 * input_parameters["additional_cavity_length"]
+    )
+    # Calculating the joining point of the outer conductor to the taper.
+    n_type_outer_radius = Units.Quantity("9 mm") / 2.0
+    port_offset = (
+        input_parameters["total_stripline_length"] / 2.0
+        - input_parameters["feedthrough_offset"]
+    )
+    feedthrough_outer_x = port_offset + n_type_outer_radius
+    feedthrough_outer_y = (
+        input_parameters["cavity_radius"]
+        - (input_parameters["cavity_radius"] - input_parameters["pipe_radius"])
+        / (total_cavity_length / 2.0 - stripline_mid_section_length / 2.0)
+        * feedthrough_outer_x
+    )
+    # Pin stops half way through the stripline.
+    pin_length = (
+        input_parameters["cavity_radius"]
+        - input_parameters["stripline_offset"]
+        + input_parameters["pipe_thickness"]
+        - input_parameters["stripline_thickness"] / 2.0
+    )
+    ring_start_y = (
+        input_parameters["cavity_radius"] + input_parameters["pipe_thickness"]
+    )
+    ring_length = ring_start_y - feedthrough_outer_y + Units.Quantity("2 mm")
+    if z_loc == "us":
+        z = -1
+    elif z_loc == "ds":
+        z = 1
+    else:
+        raise ValueError
+    n_parts = ntype_connector50Ohm(
+        pin_length=pin_length,
+        location=(z * port_offset, ring_start_y, 0),
+        rotation=(0, 0, 0),
+        rotate_around_zero=(xyrotation, 0, 0),
+    )
+    n_type_outer_inner_radius = Units.Quantity("8.03 mm") / 2.0
+    feedthrough_vaccum_length = (
+        input_parameters["cavity_radius"] + input_parameters["pipe_thickness"]
+    )
+    feedthrough_vaccum = Part.makeCylinder(
+        n_type_outer_inner_radius,
+        feedthrough_vaccum_length,
+        Base.Vector(z * port_offset, 0, 0),
+        Base.Vector(0, -1, 0),
+    )
+    rotate_at(shp=feedthrough_vaccum, rotation_angles=(xyrotation, 0, 0))
+    return n_parts, feedthrough_vaccum
+
+
+def make_stripline_feedthrough_stub(input_parameters, z_loc="us", xyrotation=0):
     stripline_mid_section_length = (
         input_parameters["total_stripline_length"]
         - 2 * input_parameters["stripline_taper_length"]
