@@ -461,7 +461,7 @@ def generate_output_files(
     if os.path.exists(outfilename):
         os.remove(outfilename)
     os.rename(os.path.join(output_loc, "".join(["A", ".FCStd"])), outfilename)
-
+    print(outfilename)
     if just_cad == 0:
         for part in part_labels:
             part_name = "-".join([model_name, part])
