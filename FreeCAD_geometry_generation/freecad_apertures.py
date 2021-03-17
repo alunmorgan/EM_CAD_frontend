@@ -326,6 +326,86 @@ def make_arc_aperture(
     face1 = Part.Face(wire1)
     return wire1, face1
 
+def make_arched_cutout_aperture(aperture_height, aperture_width, arc_radius):
+    """Creates a wire outline of a rectangle with an arc removed from the centre of one edge.
+
+    Args:
+        arc_radius (float): Radius of the arc.
+        aperture_height (float): Total height of the aperture
+        aperture_width (float): Total width of the aperture
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+    # Create the initial four vertices where line meets curve.
+    v1 = Base.Vector(0, aperture_height / 2.0, -aperture_width / 2.0)
+    v2 = Base.Vector(0, aperture_height / 2.0, aperture_width / 2.0)
+    v3 = Base.Vector(0, -aperture_height / 2.0, aperture_width / 2.0)
+    v4 = Base.Vector(0, -aperture_height / 2.0, arc_radius)
+    v5 = Base.Vector(0, -aperture_height / 2.0, -arc_radius)
+    v6 = Base.Vector(0, -aperture_height / 2.0, -aperture_width / 2.0)
+    cv1 = Base.Vector(
+        0,
+        -aperture_height / 2.0 + arc_radius,
+        0,
+    )
+    # Create lines
+    line1 = Part.LineSegment(v6, v1)
+    line2 = Part.LineSegment(v1, v2)
+    line3 = Part.LineSegment(v2, v3)
+    line4 = Part.LineSegment(v3, v4)
+    line5 = Part.LineSegment(v5, v6)
+    # Create curves
+    arc1 = Part.Arc(v4, cv1, v5)
+    # Make a shape
+    shape1 = Part.Shape([line1, line2, line3, line4, arc1, line5])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+
+    return wire1, face1
+
+def make_arched_corner_cutout_aperture(aperture_height, aperture_width, arc_radius):
+    """Creates a wire outline of a rectangle with an arc removed from the centre of one edge.
+    Centered on the side edge at mid height.
+
+    Args:
+        arc_radius (float): Radius of the arc.
+        aperture_height (float): Total height of the aperture
+        aperture_width (float): Total width of the aperture
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+    # Create the initial four vertices where line meets curve.
+    v1 = Base.Vector(0, aperture_height / 2.0, 0)
+    v2 = Base.Vector(0, aperture_height / 2.0, aperture_width)
+    v3 = Base.Vector(0, -aperture_height / 2.0, aperture_width)
+    v4 = Base.Vector(0, -aperture_height / 2.0, arc_radius)
+    v5 = Base.Vector(0, -aperture_height / 2.0 + arc_radius, 0)
+    cv1 = Base.Vector(
+        0,
+        -float(aperture_height) / 2.0 + sqrt(arc_radius/2.0),
+        sqrt(arc_radius/2.0),
+    )
+    # Create lines
+    line1 = Part.LineSegment(v5, v1)
+    line2 = Part.LineSegment(v1, v2)
+    line3 = Part.LineSegment(v2, v3)
+    line4 = Part.LineSegment(v3, v4)
+    # Create curves
+    arc1 = Part.Arc(v4, cv1, v5)
+    # Make a shape
+    shape1 = Part.Shape([line1, line2, line3, line4, arc1])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+
+    return wire1, face1
 
 def make_arched_base_aperture(aperture_height, aperture_width, arc_radius):
     """Creates a wire outline of a rectangle with an arc removed from one edge..
