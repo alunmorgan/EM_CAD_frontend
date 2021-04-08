@@ -367,9 +367,49 @@ def make_arched_cutout_aperture(aperture_height, aperture_width, arc_radius):
 
     return wire1, face1
 
-def make_arched_corner_cutout_aperture(aperture_height, aperture_width, arc_radius):
+def make_truncated_arched_cutout_aperture(aperture_height, centre_position, aperture_width, arc_radius):
     """Creates a wire outline of a rectangle with an arc removed from the centre of one edge.
-    Centered on the side edge at mid height.
+
+    Args:
+        arc_radius (float): Radius of the arc.
+        centre_position (float): position along width making the centre of the cutout arc.
+        aperture_height (float): Total height of the aperture
+        aperture_width (float): Total width of the aperture
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+    # Create the initial four vertices where line meets curve.
+    v1 = Base.Vector(0, aperture_height - arc_radius, -aperture_width + centre_position)
+    v2 = Base.Vector(0, aperture_height - arc_radius, centre_position)
+    v3 = Base.Vector(0, -float(arc_radius) + sqrt(arc_radius ** 2 - centre_position ** 2), centre_position)
+    v4 = Base.Vector(0, -arc_radius,-arc_radius)
+    v5 = Base.Vector(0, -arc_radius, -aperture_width + centre_position)
+    cv1 = Base.Vector(
+        0,
+        0,
+        0,
+    )
+    # Create lines
+    line1 = Part.LineSegment(v5, v1)
+    line2 = Part.LineSegment(v1, v2)
+    line3 = Part.LineSegment(v2, v3)
+    line4 = Part.LineSegment(v4, v5)
+    # Create curves
+    arc1 = Part.Arc(v3, cv1, v4)
+    # Make a shape
+    shape1 = Part.Shape([line1, line2, line3, arc1, line4])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+
+    return wire1, face1
+
+
+def make_arched_corner_cutout_aperture(aperture_height, aperture_width, arc_radius):
+    """Creates a wire outline of a rectangle with an arc removed from one corner.
 
     Args:
         arc_radius (float): Radius of the arc.
@@ -381,14 +421,14 @@ def make_arched_corner_cutout_aperture(aperture_height, aperture_width, arc_radi
         face1 (FreeCAD face definition): A surface description of the shape.
     """
     # Create the initial four vertices where line meets curve.
-    v1 = Base.Vector(0, aperture_height / 2.0, 0)
-    v2 = Base.Vector(0, aperture_height / 2.0, aperture_width)
-    v3 = Base.Vector(0, -aperture_height / 2.0, aperture_width)
-    v4 = Base.Vector(0, -aperture_height / 2.0, arc_radius)
-    v5 = Base.Vector(0, -aperture_height / 2.0 + arc_radius, 0)
+    v1 = Base.Vector(0, aperture_height, 0)
+    v2 = Base.Vector(0, aperture_height, aperture_width)
+    v3 = Base.Vector(0, -aperture_height, aperture_width)
+    v4 = Base.Vector(0, -aperture_height, arc_radius)
+    v5 = Base.Vector(0, -aperture_height + arc_radius, 0)
     cv1 = Base.Vector(
         0,
-        -float(aperture_height) / 2.0 + sqrt(arc_radius/2.0),
+        -float(aperture_height) + sqrt(arc_radius/2.0),
         sqrt(arc_radius/2.0),
     )
     # Create lines
