@@ -119,6 +119,7 @@ def parameter_sweep(
         inputs = copy.copy(
             input_params
         )  # To ensure the base settings are unchanged between sweeps.
+        inputs[sweep_variable] = sweep_val
         inputs_nolists = breakup_lists(
             inputs
         )  # If you use a variable which is a list for controlling the
@@ -126,7 +127,7 @@ def parameter_sweep(
         # This breaks lists into separate directory entries.
         # However you do want lists in the original inputs as this allows more flexibity
         # in the parameter sweeps.
-        inputs[sweep_variable] = sweep_val
+        
         # Replacing . with p to prevent problems with filename parsing
         value_string = str(inputs[sweep_variable]).replace(".", "p")
         value_string = value_string.replace(" ", "")
