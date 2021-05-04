@@ -1,17 +1,17 @@
-from math import sin, pi, cos, asin, sqrt, atan2
-from numpy import linspace
 from copy import deepcopy
+from math import asin, atan2, cos, log10, pi, sin, sqrt
 
 # import Part
-from FreeCAD import Base, Units, Part, Vector, Draft
+from FreeCAD import Base, Draft, Part, Units, Vector
+from numpy import linspace
 
 from FreeCAD_geometry_generation.freecad_apertures import (
     make_arc_aperture,
     make_arched_base_aperture,
-    make_arched_cutout_aperture,
     make_arched_corner_cutout_aperture,
-    make_truncated_arched_cutout_aperture,
+    make_arched_cutout_aperture,
     make_circular_aperture,
+    make_truncated_arched_cutout_aperture,
 )
 from FreeCAD_geometry_generation.freecad_operations import (
     make_beampipe,
@@ -26,7 +26,8 @@ def stripline_curved_end(params):
     stripline_offset = params["stripline_offset"]
     stripline_half_thickness = params["stripline_thickness"] / 2.0
     taper_end_width = params["stripline_taper_end_width"] + Units.Quantity(
-     "6.2deg" )  # to account for tapering to the main stripline
+        "6.2deg"
+    )  # to account for tapering to the main stripline
     arch_radius = Units.Quantity("0.75mm")  # stripline_half_thickness
     y_radius = stripline_offset + stripline_half_thickness
     # min_t = -(stripline_taper_end_width / 2.) / 180 * pi # Assuming degrees
@@ -116,7 +117,7 @@ def stripline_curved_end(params):
     sweep2 = Part.makeLoft(cap2_out, True, False)
     print("Loft 1 completed")
     sweep = sweep.fuse(sweep2)
-    print('fuse completed')
+    print("fuse completed")
     return sweep, end_solid
 
 
@@ -208,6 +209,179 @@ def sma_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
     outer = shell_upper.fuse(shell_lower)
 
     parts = {"pin": pin, "ceramic": ceramic, "outer": outer}
+    return parts
+
+
+def connector_parameterised(
+    input_parameters,
+    rotation=(Units.Quantity("0deg"), Units.Quantity("0deg"), Units.Quantity("0deg")),
+    location=(Units.Quantity("0mm"), Units.Quantity("0mm"), Units.Quantity("0mm")),
+    rotate_around_zero=(
+        Units.Quantity("0 deg"),
+        Units.Quantity("0 deg"),
+        Units.Quantity("0 deg"),
+    ),
+):
+    # Reference plane is the lower side of the ceramic (vacuum side down).
+    # pin_length is the length from the base of the ceramic into the vacuum.
+
+    pin = Part.makeCylinder(
+        input_parameters["pin_radius"],
+        input_parameters["pin_length"]
+        + input_parameters["ceramic_thickness"]
+        + input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0], location[1] - input_parameters["pin_length"], location[2]
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    pin = rotate_at(
+        shp=pin,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    print(input_parameters["ceramic_thickness"])
+    ceramic1 = Part.makeCylinder(
+        input_parameters["ceramic_radius"],
+        input_parameters["ceramic_thickness"],
+        Base.Vector(location[0], location[1], location[2]),
+        Base.Vector(0, 1, 0),
+    )
+    ceramic1 = rotate_at(
+        shp=ceramic1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    air1 = Part.makeCylinder(
+        input_parameters["shell_upper_inner_radius"],
+        input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] + input_parameters["ceramic_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    air1 = rotate_at(
+        shp=air1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+
+    shell_upper1 = Part.makeCylinder(
+        input_parameters["shell_upper_radius"],
+        input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] + input_parameters["ceramic_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_upper1 = rotate_at(
+        shp=shell_upper1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_upper2 = Part.makeCylinder(
+        input_parameters["shell_upper_inner_radius"],
+        input_parameters["shell_upper_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] + input_parameters["ceramic_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_upper2 = rotate_at(
+        shp=shell_upper2,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_middle1 = Part.makeCylinder(
+        input_parameters["shell_upper_radius"],
+        input_parameters["ceramic_thickness"],
+        Base.Vector(location[0], location[1], location[2]),
+        Base.Vector(0, 1, 0),
+    )
+    shell_middle1 = rotate_at(
+        shp=shell_middle1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_lower1 = Part.makeCylinder(
+        input_parameters["shell_lower_radius"],
+        input_parameters["shell_lower_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] - input_parameters["shell_lower_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_lower1 = rotate_at(
+        shp=shell_lower1,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_lower2 = Part.makeCylinder(
+        input_parameters["shell_lower_inner_radius"],
+        input_parameters["shell_lower_thickness"],
+        Base.Vector(
+            location[0],
+            location[1] - input_parameters["shell_lower_thickness"],
+            location[2],
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    shell_lower2 = rotate_at(
+        shp=shell_lower2,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
+    shell_middle = shell_middle1.cut(ceramic1)
+    ceramic = ceramic1.cut(pin)
+    shell_lower3 = shell_lower1.cut(shell_lower2)
+    shell_lower = shell_lower3.fuse(shell_middle)
+    shell_upper = shell_upper1.cut(shell_upper2)
+    outer = shell_upper.fuse(shell_lower)
+    air = air1.cut(pin)
+    air = air.cut(outer)
+
+    rotate_at(
+        shp=outer,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+    rotate_at(
+        shp=ceramic,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+    rotate_at(
+        shp=air,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+    rotate_at(
+        shp=pin,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
+
+    parts = {"pin": pin, "ceramic": ceramic, "outer": outer, "air": air}
     return parts
 
 
@@ -690,6 +864,79 @@ def make_nose(
     return nose
 
 
+def make_stripline_feedthrough_parameterised(
+    input_parameters, z_loc="us", xyrotation=0
+):
+    stripline_mid_section_length = (
+        input_parameters["total_stripline_length"]
+        - 2 * input_parameters["stripline_taper_length"]
+    )
+    # total_cavity_length is the total stipline length plus the additional
+    # cavity length at each end.
+    total_cavity_length = (
+        input_parameters["total_stripline_length"]
+        + 2 * input_parameters["additional_cavity_length"]
+    )
+    # Calculating the joining point of the outer conductor to the taper.
+    port_offset = (
+        input_parameters["total_stripline_length"] / 2.0
+        - input_parameters["feedthrough_offset"]
+    )
+    feedthrough_outer_x = port_offset + input_parameters["n_type_outer_radius"]
+    feedthrough_outer_y = (
+        input_parameters["cavity_radius"]
+        - (input_parameters["cavity_radius"] - input_parameters["pipe_radius"])
+        / (total_cavity_length / 2.0 - stripline_mid_section_length / 2.0)
+        * feedthrough_outer_x
+    )
+    # Pin stops half way through the stripline.
+    input_parameters["pin_length"] = (
+        input_parameters["port_height"]
+        + input_parameters["cavity_radius"]
+        - input_parameters["stripline_offset"]
+        + input_parameters["pipe_thickness"]
+        - input_parameters["stripline_thickness"] / 2.0
+    )
+    ring_start_y = (
+        input_parameters["port_height"]
+        + input_parameters["cavity_radius"]
+        + input_parameters["pipe_thickness"]
+    )
+    ring_length = ring_start_y - feedthrough_outer_y + Units.Quantity("2 mm")
+
+    if z_loc == "us":
+        z = -1
+    elif z_loc == "ds":
+        z = 1
+    else:
+        raise ValueError
+
+    port_link = Part.makeCylinder(
+        input_parameters["port_ouside_radius"],
+        ring_length,
+        Base.Vector(z * port_offset, ring_start_y, 0),
+        Base.Vector(0, -1, 0),
+    )
+    n_parts = connector_parameterised(
+        input_parameters,
+        location=(z * port_offset, ring_start_y, 0),
+        rotation=(0, 0, 0),
+        rotate_around_zero=(xyrotation, 0, 0),
+    )
+    feedthrough_vaccum_length = ring_start_y
+    feedthrough_vaccum = Part.makeCylinder(
+        input_parameters["n_type_outer_inner_radius"],
+        feedthrough_vaccum_length,
+        Base.Vector(z * port_offset, 0, 0),
+        Base.Vector(0, -1, 0),
+    )
+    port_link = port_link.cut(feedthrough_vaccum)
+    rotate_at(shp=feedthrough_vaccum, rotation_angles=(xyrotation, 0, 0))
+    rotate_at(shp=port_link, rotation_angles=(xyrotation, 0, 0))
+    n_parts["outer"] = n_parts["outer"].fuse(port_link)
+    return n_parts, feedthrough_vaccum
+
+
 def make_stripline_feedthrough_full(input_parameters, z_loc="us", xyrotation=0):
     stripline_mid_section_length = (
         input_parameters["total_stripline_length"]
@@ -702,12 +949,11 @@ def make_stripline_feedthrough_full(input_parameters, z_loc="us", xyrotation=0):
         + 2 * input_parameters["additional_cavity_length"]
     )
     # Calculating the joining point of the outer conductor to the taper.
-    n_type_outer_radius = Units.Quantity("9 mm") / 2.0
     port_offset = (
         input_parameters["total_stripline_length"] / 2.0
         - input_parameters["feedthrough_offset"]
     )
-    feedthrough_outer_x = port_offset + n_type_outer_radius
+    feedthrough_outer_x = port_offset + input_parameters["n_type_outer_radius"]
     feedthrough_outer_y = (
         input_parameters["cavity_radius"]
         - (input_parameters["cavity_radius"] - input_parameters["pipe_radius"])
@@ -723,17 +969,19 @@ def make_stripline_feedthrough_full(input_parameters, z_loc="us", xyrotation=0):
         - input_parameters["stripline_thickness"] / 2.0
     )
     ring_start_y = (
-        input_parameters["port_height"] + input_parameters["cavity_radius"] + input_parameters["pipe_thickness"]
+        input_parameters["port_height"]
+        + input_parameters["cavity_radius"]
+        + input_parameters["pipe_thickness"]
     )
     ring_length = ring_start_y - feedthrough_outer_y + Units.Quantity("2 mm")
-   
+
     if z_loc == "us":
         z = -1
     elif z_loc == "ds":
         z = 1
     else:
         raise ValueError
-        
+
     port_link = Part.makeCylinder(
         Units.Quantity("10 mm"),
         ring_length,
@@ -757,7 +1005,7 @@ def make_stripline_feedthrough_full(input_parameters, z_loc="us", xyrotation=0):
     port_link = port_link.cut(feedthrough_vaccum)
     rotate_at(shp=feedthrough_vaccum, rotation_angles=(xyrotation, 0, 0))
     rotate_at(shp=port_link, rotation_angles=(xyrotation, 0, 0))
-    n_parts['outer'] = n_parts['outer'].fuse(port_link)
+    n_parts["outer"] = n_parts["outer"].fuse(port_link)
     return n_parts, feedthrough_vaccum
 
 
@@ -823,6 +1071,121 @@ def make_stripline_feedthrough_stub(input_parameters, z_loc="us", xyrotation=0):
     return n_parts, feedthrough_vaccum
 
 
+def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
+    stripline_mid_section_length = (
+        input_parameters["total_stripline_length"]
+        - 2 * input_parameters["stripline_taper_length"]
+    )
+    stripline_main_wire, stripline_main_face = make_arc_aperture(
+        arc_inner_radius=input_parameters["stripline_offset"],
+        arc_outer_radius=input_parameters["stripline_offset"]
+        + input_parameters["stripline_thickness"],
+        arc_length=input_parameters["stripline_width"],
+        blend_radius=Units.Quantity("0.75 mm"),
+    )
+    stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture(
+        arc_inner_radius=input_parameters["stripline_offset"],
+        arc_outer_radius=input_parameters["stripline_offset"]
+        + input_parameters["stripline_thickness"],
+        arc_length=input_parameters["stripline_taper_end_width"],
+        blend_radius=Units.Quantity("0.75 mm"),
+    )
+
+    stripline_main = make_beampipe(
+        pipe_aperture=stripline_main_face,
+        pipe_length=stripline_mid_section_length,
+        loc=(0, 0, 0),
+    )
+    stripline_taper_us = make_taper(
+        aperture1=stripline_taper_end_wire,
+        aperture2=stripline_main_wire,
+        taper_length=input_parameters["stripline_taper_length"],
+        loc=(
+            -input_parameters["stripline_taper_length"]
+            - stripline_mid_section_length / 2.0,
+            0,
+            0,
+        ),
+    )
+    stripline_taper_ds = make_taper(
+        aperture1=stripline_main_wire,
+        aperture2=stripline_taper_end_wire,
+        taper_length=input_parameters["stripline_taper_length"],
+        loc=(stripline_mid_section_length / 2.0, 0, 0),
+    )
+    stripline = stripline_main.fuse(stripline_taper_us)
+    stripline = stripline.fuse(stripline_taper_ds)
+    if "Launch_height" in input_parameters:
+        us_launch = Part.makeCone(
+            input_parameters["Launch_rad"],
+            input_parameters["pin_radius"],
+            input_parameters["Launch_height"],
+            Base.Vector(
+                -input_parameters["total_stripline_length"] / 2.0
+                + input_parameters["feedthrough_offset"],
+                0,
+                input_parameters["stripline_offset"],
+            ),
+        )
+        ds_launch = Part.makeCone(
+            input_parameters["Launch_rad"],
+            input_parameters["pin_radius"],
+            input_parameters["Launch_height"],
+            Base.Vector(
+                input_parameters["total_stripline_length"] / 2.0
+                - input_parameters["feedthrough_offset"],
+                0,
+                input_parameters["stripline_offset"],
+            ),
+        )
+        cone_base = Units.Quantity(
+            str(float(input_parameters["Launch_rad"]) * 10**(50 / 138)) + "mm"
+        )
+        cone_top = Units.Quantity(
+            str(float(input_parameters["pin_radius"]) * 10**(50 / 138)) + "mm"
+        )
+        print("Launch rad ", input_parameters["Launch_rad"])
+        print("cone base ", cone_base)
+        print("pin_radius ", input_parameters["pin_radius"])
+        print("cone top ", cone_top)
+        us_launch_vac = Part.makeCone(
+            cone_base,
+            cone_top,
+            input_parameters["Launch_height"],
+            Base.Vector(
+                -input_parameters["total_stripline_length"] / 2.0
+                + input_parameters["feedthrough_offset"],
+                0,
+                input_parameters["stripline_offset"],
+            ),
+        )
+        ds_launch_vac = Part.makeCone(
+            cone_base,
+            cone_top,
+            input_parameters["Launch_height"],
+            Base.Vector(
+                input_parameters["total_stripline_length"] / 2.0
+                - input_parameters["feedthrough_offset"],
+                0,
+                input_parameters["stripline_offset"],
+            ),
+        )
+        launch_vac = us_launch_vac.fuse(ds_launch_vac)
+        # stripline = stripline.cut(stripline_end_us)
+        # stripline = stripline.cut(stripline_end_ds)
+        # us_launch = us_launch.cut(stripline_end_us)
+        # ds_launch = ds_launch.cut(stripline_end_ds)
+        stripline = stripline.fuse(us_launch)
+        stripline = stripline.fuse(ds_launch)
+
+        rotate_at(shp=launch_vac, rotation_angles=(xyrotation, 0, 0))
+        rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
+        return stripline, launch_vac
+    else:
+        rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
+        return stripline
+
+
 def make_stripline(input_parameters, xyrotation=0):
     stripline_mid_section_length = (
         input_parameters["total_stripline_length"]
@@ -868,34 +1231,6 @@ def make_stripline(input_parameters, xyrotation=0):
     stripline = stripline_main.fuse(stripline_taper_us)
     stripline = stripline.fuse(stripline_taper_ds)
     if "Launch_height" in input_parameters:
-        #     arch_radius = input_parameters["stripline_offset"] * sin(
-        #         2.0 * input_parameters["stripline_taper_end_width"]
-        #     )
-        #     stripline_end_wire, stripline_end_face = make_arched_base_aperture(
-        #         aperture_height=2.0 * arch_radius,
-        #         aperture_width=2.0 * arch_radius,
-        #         arc_radius=arch_radius,
-        #     )
-        #     stripline_end_us = make_beampipe(
-        #         pipe_aperture=stripline_end_face,
-        #         pipe_length=input_parameters["cavity_radius"],
-        #         loc=(
-        #             -input_parameters["total_stripline_length"] / 2.0,
-        #             0,
-        #             input_parameters["cavity_radius"] / 2.0,
-        #         ),
-        #         rotation_angles=(90, 0, -90),
-        #     )
-        #     stripline_end_ds = make_beampipe(
-        #         pipe_aperture=stripline_end_face,
-        #         pipe_length=input_parameters["cavity_radius"],
-        #         loc=(
-        #             input_parameters["total_stripline_length"] / 2.0,
-        #             0,
-        #             input_parameters["cavity_radius"] / 2.0,
-        #         ),
-        #         rotation_angles=(90, 0, 90),
-        #     )
         us_launch = Part.makeCone(
             input_parameters["Launch_rad"],
             Units.Quantity("1.75mm"),
