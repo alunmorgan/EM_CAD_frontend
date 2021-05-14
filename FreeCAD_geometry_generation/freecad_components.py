@@ -240,7 +240,19 @@ def connector_parameterised(
         loc=(location[0], location[1], location[2]),
         rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
-    print(input_parameters["ceramic_thickness"])
+    vac = Part.makeCylinder(
+        input_parameters["shell_lower_inner_radius"],
+        input_parameters["pin_length"],
+        Base.Vector(
+            location[0], location[1] - input_parameters["pin_length"], location[2]
+        ),
+        Base.Vector(0, 1, 0),
+    )
+    vac = rotate_at(
+        shp=vac,
+        loc=(location[0], location[1], location[2]),
+        rotation_angles=(rotation[0], rotation[1], rotation[2]),
+    )
     ceramic1 = Part.makeCylinder(
         input_parameters["ceramic_radius"],
         input_parameters["ceramic_thickness"],
@@ -380,8 +392,16 @@ def connector_parameterised(
             rotate_around_zero[2],
         ),
     )
+    rotate_at(
+        shp=vac,
+        rotation_angles=(
+            rotate_around_zero[0],
+            rotate_around_zero[1],
+            rotate_around_zero[2],
+        ),
+    )
 
-    parts = {"pin": pin, "ceramic": ceramic, "outer": outer, "air": air}
+    parts = {"pin": pin, "ceramic": ceramic, "outer": outer, "air": air, "vac": vac}
     return parts
 
 
