@@ -259,11 +259,22 @@ def connector_parameterised(
         Base.Vector(location[0], location[1], location[2]),
         Base.Vector(0, 1, 0),
     )
+    if input_parameters["ceramic_inner_radius"]:
+        ceramic_hole = Part.makeCylinder(
+        input_parameters["ceramic_inner_radius"],
+        input_parameters["ceramic_thickness"],
+        Base.Vector(location[0], location[1], location[2]),
+        Base.Vector(0, 1, 0),
+        )
+        ceramic1 = ceramic1.cut(ceramic_hole)
     ceramic1 = rotate_at(
         shp=ceramic1,
         loc=(location[0], location[1], location[2]),
         rotation_angles=(rotation[0], rotation[1], rotation[2]),
     )
+    if input_parameters["ceramic_inner_radius"]:
+        pin = pin.cut(ceramic1)
+
     air1 = Part.makeCylinder(
         input_parameters["shell_upper_inner_radius"],
         input_parameters["shell_upper_thickness"],
