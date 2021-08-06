@@ -30,10 +30,12 @@ def stripline_curved_end(params):
     )  # to account for tapering to the main stripline
     arch_radius = Units.Quantity("0.75mm")  # stripline_half_thickness
     y_radius = stripline_offset + stripline_half_thickness
-    # min_t = -(stripline_taper_end_width / 2.) / 180 * pi # Assuming degrees
-    # max_t = float((taper_end_width / 2.0) / 180 * pi)  # Assuming degrees
-    # max_loc = (stripline_offset + stripline_half_thickness) * sin(max_t)
     end_radius = y_radius * sin((taper_end_width / 2.0) / 180 * pi)  # chord /2
+
+    end_shape_height = Units.Quantity('30mm')
+    end_box = Part.makeBox(Units.Quantity('30mm'), end_shape_height, Units.Quantity('20mm'), Vector(stripline_length/2 - end_radius,0, -Units.Quantity('10mm')))
+    end_cylinder = Part.makeCylinder(end_radius, end_shape_height, Vector(stripline_length/2 - end_radius,0,0), Vector(0,1,0))
+    end_curve_cap = end_box.cut(end_cylinder)
     n_points = 51
     points = []
     pointsBottom = []
@@ -47,12 +49,9 @@ def stripline_curved_end(params):
         float(pi / 2.0),
         num=n_points,
         endpoint=True
-        # ang_scale = linspace(
-        # -float(max_t), float(max_t), num=n_points, endpoint=True
     )  # angular spacing
     for val in ang_scale:
         z_axis.append(float(end_radius) * sin(val))
-    # z_axis = linspace(-float(max_loc), float(max_loc), num=n_points, endpoint=True) # distance spacing
     for z in z_axis:
         x_point = (
             stripline_length / 2.0
@@ -90,7 +89,7 @@ def stripline_curved_end(params):
     cap2_out = []
     for sd in range(len(z_axis)):
         cap1_wire, cap1_face = make_truncated_arched_cutout_aperture(
-            aperture_height=arch_radius + Units.Quantity("1mm"),
+            aperture_height=arch_radius + Units.Quantity("10mm"),
             centre_position=Units.Quantity("0.001mm"),
             aperture_width=arch_radius + Units.Quantity("2mm"),
             arc_radius=arch_radius,
@@ -102,7 +101,7 @@ def stripline_curved_end(params):
         cap1_out.append(cap1_wire)
 
         cap2_wire, cap2_face = make_truncated_arched_cutout_aperture(
-            aperture_height=arch_radius + Units.Quantity("1mm"),
+            aperture_height=arch_radius + Units.Quantity("10mm"),
             centre_position=Units.Quantity("0.001mm"),
             aperture_width=arch_radius + Units.Quantity("2mm"),
             arc_radius=arch_radius,
@@ -118,7 +117,8 @@ def stripline_curved_end(params):
     print("Loft 1 completed")
     sweep = sweep.fuse(sweep2)
     print("fuse completed")
-    return sweep, end_solid
+    return sweep, end_curve_cap
+    # return sweep, end_solid
 
 
 def sma_connector(pin_length=20e-3, rotation=(0, 1, 0), location=(0, 0, 0)):
@@ -1175,10 +1175,6 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         cone_top = Units.Quantity(
             str(float(input_parameters["pin_radius"]) * 10**(50 / 138)) + "mm"
         )
-        print("Launch rad ", input_parameters["Launch_rad"])
-        print("cone base ", cone_base)
-        print("pin_radius ", input_parameters["pin_radius"])
-        print("cone top ", cone_top)
         us_launch_vac = Part.makeCone(
             cone_base,
             cone_top,
