@@ -958,6 +958,51 @@ def make_circular_aperture(aperture_radius):
     return wire1, face1
 
 
+def make_octagonal_aperture_asymetric(aperture_height, aperture_width1, aperture_width2, side_length1, side_length2, tb_length):
+    """Creates a wire outline of a symmetric octagon specified by 4 inputs.
+    aperture_height and aperture_width are the full height and width
+    (the same as if it were a rectangle)
+    side_length and tb_length specify the lengths of the top/ bottom and sides
+    and so implicitly allow the diagonals to be defined.
+
+    Args:
+        aperture_height (float): Total height of the octagon.
+        aperture_width (float): Total width of the octagon.
+        side_length (float): Length of the vertical sides
+        tb_length (float): Length of the horizontal sides.
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+
+    # Create the initial eight vertices where line meets curve.
+    v1 = Base.Vector(0, aperture_height / 2.0, -tb_length / 2.0)
+    v2 = Base.Vector(0, aperture_height / 2.0, tb_length / 2.0)
+    v3 = Base.Vector(0, side_length1 / 2.0, aperture_width1 )
+    v4 = Base.Vector(0, -side_length1 / 2.0, aperture_width1)
+    v5 = Base.Vector(0, -aperture_height / 2.0, tb_length / 2.0)
+    v6 = Base.Vector(0, -aperture_height / 2.0, -tb_length / 2.0)
+    v7 = Base.Vector(0, -side_length2 / 2.0, -aperture_width2)
+    v8 = Base.Vector(0, side_length2 / 2.0, -aperture_width2)
+
+    # Create lines
+    line1 = Part.LineSegment(v1, v2)
+    line2 = Part.LineSegment(v2, v3)
+    line3 = Part.LineSegment(v3, v4)
+    line4 = Part.LineSegment(v4, v5)
+    line5 = Part.LineSegment(v5, v6)
+    line6 = Part.LineSegment(v6, v7)
+    line7 = Part.LineSegment(v7, v8)
+    line8 = Part.LineSegment(v8, v1)
+    # Make a shape
+    shape1 = Part.Shape([line1, line2, line3, line4, line5, line6, line7, line8])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
 def make_octagonal_aperture(aperture_height, aperture_width, side_length, tb_length):
     """Creates a wire outline of a symmetric octagon specified by 4 inputs.
     aperture_height and aperture_width are the full height and width
@@ -1002,7 +1047,6 @@ def make_octagonal_aperture(aperture_height, aperture_width, side_length, tb_len
     # Make a face.
     face1 = Part.Face(wire1)
     return wire1, face1
-
 
 def make_octagonal_aperture_with_keyholes_and_antichamber(
     aperture_height,
