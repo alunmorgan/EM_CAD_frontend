@@ -2,7 +2,8 @@ from copy import deepcopy
 from math import asin, atan2, cos, log10, pi, sin, sqrt
 
 # import Part
-from FreeCAD import Base, Draft, Part, Units, Vector
+from FreeCAD import Base, Draft, Units, Vector
+import Part
 from numpy import linspace
 
 from FreeCAD_geometry_generation.freecad_apertures import (

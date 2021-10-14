@@ -1,11 +1,6 @@
 from math import asin, atan,  cos, pi, radians, sin, sqrt
-
-# import FreeCAD
-
-# import FreeCADGui
-# import Mesh
-# import MeshPart
-from FreeCAD import Base, Units, Part
+from FreeCAD import Base, Units
+import Part
 from FreeCAD_geometry_generation.freecad_operations import rotate_cartesian
 
 # This has to run using the FreeCAD built in python interpreter.

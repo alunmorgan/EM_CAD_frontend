@@ -5,8 +5,6 @@ from math import atan2, cos, radians, sin, sqrt
 
 import FreeCAD
 
-# import FreeCADGui
-# import Mesh
 import MeshPart
 import Part
 from FreeCAD import Base, Units
@@ -485,7 +483,7 @@ def generate_output_files(
                 m1 = MeshPart.meshFromShape(
                     Shape=parts_list[part],
                     LinearDeflection=0.01,
-                    AngularDeflection=0.0174533,
+                    AngularDeflection=0.1,
                     Relative=True,
                 )
             else:
