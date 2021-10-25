@@ -959,7 +959,7 @@ def make_stripline_feedthrough_parameterised(
     feedthrough_vaccum = Part.makeCylinder(
         input_parameters["n_type_outer_inner_radius"],
         feedthrough_vaccum_length,
-        Base.Vector(z * port_offset, 0, 0),
+        Base.Vector(z * port_offset, -input_parameters["pipe_radius"], 0),
         Base.Vector(0, -1, 0),
     )
     port_link = port_link.cut(feedthrough_vaccum)
