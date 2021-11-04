@@ -13,12 +13,70 @@ from FreeCAD_geometry_generation.freecad_apertures import (
     make_arched_cutout_aperture,
     make_circular_aperture,
     make_truncated_arched_cutout_aperture,
+    make_rounded_rectangle_aperture,
 )
 from FreeCAD_geometry_generation.freecad_operations import (
     make_beampipe,
     make_taper,
     rotate_at,
 )
+
+
+def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
+    y_radius = y_offset + thickness / 2.0
+    end_radius = y_radius * sin((end_width / 2.0) / 180 * pi)  # chord /2
+
+    n_points = 51
+    points = []
+    z_axis = []
+    ang_scale = linspace(
+        float(-pi / 2.0), float(pi / 2.0), num=n_points, endpoint=True
+    )  # angular spacing
+    ang_scale = ang_scale[7:n_points-7]
+    for val in ang_scale:
+        z_axis.append(float(end_radius) * sin(val))
+    for z in z_axis:
+        x_point = -end_radius + Units.Quantity(
+            str(sqrt(end_radius ** 2.0 - Units.Quantity(str(z) + "mm") ** 2.0)) + "mm"
+        )
+        y_point = Units.Quantity(
+            str(sqrt((y_radius) ** 2.0 - Units.Quantity(str(z) + "mm") ** 2.0)) + "mm"
+        )
+        points.append(Vector(x_point, y_point, z))
+
+    end_curve = Part.makePolygon(points)
+    end_wire = Part.Wire(end_curve)
+
+    cap1_out = []
+    for sd in range(len(z_axis)):
+        cap1_wire, cap1_face = make_rounded_rectangle_aperture(
+            aperture_height= thickness,
+            aperture_width=thickness,
+            corner_radius=blend_radius,
+        )
+
+        cap1_wire = rotate_at(cap1_wire, rotation_angles=(90, 180, 0))
+        cap1_wire.translate(points[sd])
+        cap1_wire.rotate(points[sd], Base.Vector(0, 1, 0), -(ang_scale[sd] + 90))
+        cap1_wire.translate(Base.Vector(0, Units.Quantity('0.025mm'),0))
+        cap1_out.append(cap1_wire)
+
+    makeSolid = True
+    isFrenet = False
+    Transition = 0
+    sweep = end_wire.makePipeShell(cap1_out, makeSolid, isFrenet, Transition)
+    # sweep.translate(Base.Vector(thickness / 2.0, 0, 0))
+
+    arc_wire, arc_face, = make_arched_cutout_aperture(
+        aperture_height=end_radius * 2.0,
+        aperture_width=end_radius * 3.0,
+        arc_radius=end_radius + blend_radius,
+    )
+    end_cap = make_beampipe(pipe_aperture=arc_face, pipe_length=2 * thickness)
+    end_cap = rotate_at(end_cap, rotation_angles=(0, 0, -90))
+    end_cap.translate(Base.Vector(0, y_offset, 0))
+    end_cap.translate(Base.Vector(-Units.Quantity('0.7mm'), 0, 0))
+    return sweep, end_cap
 
 
 def stripline_curved_end(params):
@@ -902,6 +960,7 @@ def make_nose(
     nose = rotate_at(nose, loc=loc, rotation_angles=rot)
     return nose
 
+
 def make_folded_stripline_feedthrough_parameterised(
     input_parameters, z_loc="us", xyrotation=0
 ):
@@ -1181,6 +1240,21 @@ def make_stripline_feedthrough_stub(input_parameters, z_loc="us", xyrotation=0):
     return n_parts, feedthrough_vaccum
 
 
+def make_sweep(aperture1, aperture2, aperture3, path1, path2):
+    wire1 = Part.Wire(path1.Edges)
+    wire2 = Part.Wire(path2.Edges)
+    makeSolid = True
+    isFrenet = False
+    Transition = 0
+    solid1 = wire1.makePipeShell(
+        [aperture1, aperture2], makeSolid, isFrenet, Transition
+    )
+    solid2 = wire2.makePipeShell(
+        [aperture2, aperture3], makeSolid, isFrenet, Transition
+    )
+    return solid1.fuse(solid2)
+
+
 def make_stripline_folded(input_parameters, xyrotation=0):
     stripline_mid_section_length = (
         input_parameters["total_stripline_length"]
@@ -1194,8 +1268,26 @@ def make_stripline_folded(input_parameters, xyrotation=0):
         blend_radius=input_parameters["stripline_blend_radius"],
     )
     # in order to fix the horizontal width, the new angle for the  larger radius need to be calculated.
-    folded_section_offset = input_parameters["stripline_offset"] + input_parameters["stripline_thickness"] + input_parameters["fold_spacing"]
-    folded_section_angle = 2 * asin(input_parameters["stripline_offset"] * sin(input_parameters["stripline_width"] / 2) /folded_section_offset) / pi * 180
+    folded_section_offset = (
+        input_parameters["stripline_offset"]
+        + input_parameters["stripline_thickness"]
+        + input_parameters["fold_spacing"]
+    )
+    folded_section_angle = (
+        2
+        * asin(
+            input_parameters["stripline_offset"]
+            * sin(input_parameters["stripline_width"] / 2)
+            / folded_section_offset
+        )
+        / pi
+        * 180
+    )
+    stripline_cartesian_width = (
+        2
+        * input_parameters["stripline_offset"]
+        * sin(input_parameters["stripline_width"] / 2.0)
+    )
     stripline_main_fold_wire, stripline_main_fold_face = make_arc_aperture(
         arc_inner_radius=folded_section_offset,
         arc_outer_radius=folded_section_offset
@@ -1207,10 +1299,80 @@ def make_stripline_folded(input_parameters, xyrotation=0):
         arc_inner_radius=folded_section_offset,
         arc_outer_radius=folded_section_offset
         + input_parameters["stripline_thickness"],
-        arc_length=folded_section_angle,
+        arc_length=input_parameters["stripline_taper_end_width"],
         blend_radius=input_parameters["stripline_blend_radius"],
     )
 
+    (
+        stripline_end_curve_wire,
+        stripline_end_curve_face,
+    ) = make_rounded_rectangle_aperture(
+        aperture_height=stripline_cartesian_width,
+        aperture_width=input_parameters["stripline_thickness"],
+        corner_radius=input_parameters["stripline_blend_radius"],
+    )
+    rotate_at(shp=stripline_end_curve_wire, rotation_angles=(0, 90, 0))
+    ends_gap = (
+        input_parameters["stripline_thickness"] + input_parameters["fold_spacing"]
+    )
+    stripline_end_curve_wire.translate(
+        Base.Vector(
+            ends_gap / 2.0,
+            0,
+            input_parameters["stripline_offset"]
+            + ends_gap / 2.0
+            + input_parameters["stripline_thickness"] / 2.0,
+        )
+    )
+
+    pp1 = Base.Vector(
+        0,
+        0,
+        input_parameters["stripline_offset"]
+        + input_parameters["stripline_thickness"] / 2.0,
+    )
+    pp2 = Base.Vector(
+        ends_gap / 2.0,
+        0,
+        input_parameters["stripline_offset"]
+        + ends_gap / 2.0
+        + input_parameters["stripline_thickness"] / 2.0,
+    )
+    pp3 = Base.Vector(
+        0,
+        0,
+        input_parameters["stripline_offset"]
+        + ends_gap
+        + input_parameters["stripline_thickness"] / 2.0,
+    )
+    pc1 = Base.Vector(
+        ends_gap / 2.0 - (ends_gap / 2.0) * (1 - 1 / sqrt(2.0)),
+        0,
+        input_parameters["stripline_offset"]
+        + (ends_gap / 2.0) * (1 - 1 / sqrt(2.0))
+        + input_parameters["stripline_thickness"] / 2.0,
+    )
+    pc2 = Base.Vector(
+        ends_gap / 2.0 - (ends_gap / 2.0) * (1 - 1 / sqrt(2.0)),
+        0,
+        input_parameters["stripline_offset"]
+        + ends_gap
+        - (ends_gap / 2.0) * (1 - 1 / sqrt(2.0))
+        + input_parameters["stripline_thickness"] / 2.0,
+    )
+    path1 = Part.Shape([Part.ArcOfCircle(pp1, pc1, pp2)])
+    path2 = Part.Shape([Part.ArcOfCircle(pp2, pc2, pp3)])
+    fold = make_sweep(
+        stripline_main_wire,
+        stripline_end_curve_wire,
+        stripline_main_fold_wire,
+        path1,
+        path2,
+    )
+    fold.translate(Base.Vector(input_parameters["total_stripline_length"] / 2.0, 0, 0))
+    fold2 = fold.mirror(Base.Vector(0, 0, 0), Base.Vector(0, 1, 0))
+    fold3 = fold.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    fold4 = fold2.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
     stripline_main = make_beampipe(
         pipe_aperture=stripline_main_face,
         pipe_length=input_parameters["total_stripline_length"],
@@ -1259,10 +1421,60 @@ def make_stripline_folded(input_parameters, xyrotation=0):
             0,
         ),
     )
+
+    end_sweep, end_cap = rounded_curved_end(
+        y_offset=folded_section_offset,
+        thickness=input_parameters["stripline_thickness"],
+        end_width=input_parameters["stripline_taper_end_width"],
+        blend_radius=input_parameters["stripline_blend_radius"],
+    )
+    end_sweep.translate(
+        Base.Vector(
+            -input_parameters["total_stripline_length"] / 2.0
+            + input_parameters["fold_length"]
+            + input_parameters["stripline_taper_length"],
+            0,
+            0,
+        )
+    )
+    end_cap.translate(
+        Base.Vector(
+            -input_parameters["total_stripline_length"] / 2.0
+            + input_parameters["fold_length"]
+            + input_parameters["stripline_taper_length"],
+            0,
+            0,
+        )
+    )
+    end_cap.rotate( Base.Vector(0,0,0), Base.Vector(1,0,0), 90)
+    end_sweep.rotate( Base.Vector(0,0,0), Base.Vector(1,0,0), 90)
+    end_sweep2 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    # end_sweep3 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    # end_sweep4 = end_sweep2.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    end_cap2 = end_cap.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    # end_cap3 = end_cap.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    # end_cap4 = end_cap2.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+
     stripline = stripline_main.fuse(stripline_taper_us)
     stripline = stripline.fuse(stripline_taper_ds)
     stripline = stripline.fuse(stripline_fold1)
     stripline = stripline.fuse(stripline_fold2)
+    stripline = stripline.fuse(fold)
+    stripline = stripline.fuse(fold2)
+    stripline = stripline.fuse(fold3)
+    stripline = stripline.fuse(fold4)
+
+    stripline = stripline.cut(end_cap)
+    stripline = stripline.cut(end_cap2)
+    # stripline = stripline.cut(end_cap3)
+    # stripline = stripline.cut(end_cap4)
+
+    stripline = stripline.fuse(end_sweep)
+    stripline = stripline.fuse(end_sweep2)
+    # stripline = stripline.fuse(end_sweep3)
+    # stripline = stripline.fuse(end_sweep4)
+
+
     if "Launch_height" in input_parameters:
         us_launch = Part.makeCone(
             input_parameters["Launch_rad"],
@@ -1275,8 +1487,8 @@ def make_stripline_folded(input_parameters, xyrotation=0):
                 - input_parameters["feedthrough_offset"],
                 0,
                 input_parameters["stripline_offset"]
-        + input_parameters["fold_spacing"]
-        + input_parameters["stripline_thickness"],
+                + input_parameters["fold_spacing"]
+                + input_parameters["stripline_thickness"],
             ),
         )
         ds_launch = Part.makeCone(
@@ -1290,8 +1502,8 @@ def make_stripline_folded(input_parameters, xyrotation=0):
                 + input_parameters["feedthrough_offset"],
                 0,
                 input_parameters["stripline_offset"]
-        + input_parameters["fold_spacing"]
-        + input_parameters["stripline_thickness"],
+                + input_parameters["fold_spacing"]
+                + input_parameters["stripline_thickness"],
             ),
         )
         cone_base = Units.Quantity(
@@ -1311,8 +1523,8 @@ def make_stripline_folded(input_parameters, xyrotation=0):
                 - input_parameters["feedthrough_offset"],
                 0,
                 input_parameters["stripline_offset"]
-        + input_parameters["fold_spacing"]
-        + input_parameters["stripline_thickness"],
+                + input_parameters["fold_spacing"]
+                + input_parameters["stripline_thickness"],
             ),
         )
         ds_launch_vac = Part.makeCone(
@@ -1326,8 +1538,8 @@ def make_stripline_folded(input_parameters, xyrotation=0):
                 + input_parameters["feedthrough_offset"],
                 0,
                 input_parameters["stripline_offset"]
-        + input_parameters["fold_spacing"]
-        + input_parameters["stripline_thickness"],
+                + input_parameters["fold_spacing"]
+                + input_parameters["stripline_thickness"],
             ),
         )
         launch_vac = us_launch_vac.fuse(ds_launch_vac)
@@ -1340,7 +1552,12 @@ def make_stripline_folded(input_parameters, xyrotation=0):
 
         rotate_at(shp=launch_vac, rotation_angles=(xyrotation, 0, 0))
         rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
-        return stripline, launch_vac
+        return (
+            stripline,
+            launch_vac,
+            end_sweep,
+            end_cap,
+        )
     else:
         rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
         return stripline
