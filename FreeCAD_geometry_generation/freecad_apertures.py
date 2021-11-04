@@ -87,6 +87,52 @@ def make_rectangle_aperture(aperture_height, aperture_width):
     face1 = Part.Face(wire1)
     return wire1, face1
 
+def make_rounded_rectangle_aperture(aperture_height, aperture_width, corner_radius):
+    """Creates a wire outline of a rectangle.
+    aperture_height and aperture_width are the full height and width.
+
+
+    Args:
+        aperture_height (float): Total height of the aperture
+        aperture_width (float): Total width of the aperture
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+    # Create the initial four vertices where line meets curve.
+    v1 = Base.Vector(0, aperture_height / 2.0 - corner_radius, -aperture_width / 2.0)
+    v2 = Base.Vector(0, aperture_height / 2.0, -aperture_width / 2.0 + corner_radius)
+    v3 = Base.Vector(0, aperture_height / 2.0, aperture_width / 2.0 - corner_radius)
+    v4 = Base.Vector(0, aperture_height / 2.0 - corner_radius, aperture_width / 2.0)
+    v5 = Base.Vector(0, -aperture_height / 2.0 + corner_radius, aperture_width / 2.0)
+    v6 = Base.Vector(0, -aperture_height / 2.0, aperture_width / 2.0 -corner_radius)
+    v7 = Base.Vector(0, -aperture_height / 2.0, -aperture_width / 2.0 + corner_radius)
+    v8 = Base.Vector(0, -aperture_height / 2.0 + corner_radius, -aperture_width / 2.0)
+    # Create lines
+    line1 = Part.LineSegment(v2, v3)
+    line2 = Part.LineSegment(v4, v5)
+    line3 = Part.LineSegment(v6, v7)
+    line4 = Part.LineSegment(v8, v1)
+
+    centre_curve_offset = corner_radius * (1 - 1/sqrt(2))
+    vc1 = Base.Vector(0, aperture_height /2.0 - centre_curve_offset, -aperture_width / 2.0 + centre_curve_offset)
+    vc2 = Base.Vector(0, aperture_height /2.0 - centre_curve_offset, aperture_width / 2.0 - centre_curve_offset)
+    vc3 = Base.Vector(0, -aperture_height /2.0 + centre_curve_offset, aperture_width / 2.0 - centre_curve_offset)
+    vc4 = Base.Vector(0, -aperture_height /2.0 + centre_curve_offset, -aperture_width / 2.0 + centre_curve_offset)
+
+    arc1 = Part.Arc(v1, vc1, v2)
+    arc2 = Part.Arc(v3, vc2, v4)
+    arc3 = Part.Arc(v5, vc3, v6)
+    arc4 = Part.Arc(v7, vc4, v8)
+    # Make a shape
+    shape1 = Part.Shape([arc1, line1, arc2, line2, arc3, line3, arc4, line4])
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
 
 def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     """Creates a wire outline of a circular pipe with a keyhole extension on the side.
@@ -463,7 +509,7 @@ def make_arched_base_aperture(aperture_height, aperture_width, arc_radius):
         0,
         -aperture_height / 2.0
         + arc_radius
-        - Units.Quantity(sqrt(arc_radius ** 2 - (aperture_width ** 2) / 4), 1),
+        - Units.Quantity(str(sqrt(arc_radius ** 2 - (aperture_width ** 2) / 4)) + "mm"),
         0,
     )
     # Create lines
