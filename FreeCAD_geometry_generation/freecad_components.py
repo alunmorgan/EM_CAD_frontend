@@ -1555,8 +1555,6 @@ def make_stripline_folded(input_parameters, xyrotation=0):
         return (
             stripline,
             launch_vac,
-            end_sweep,
-            end_cap,
         )
     else:
         rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
