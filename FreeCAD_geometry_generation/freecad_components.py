@@ -32,7 +32,7 @@ def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
     ang_scale = linspace(
         float(-pi / 2.0), float(pi / 2.0), num=n_points, endpoint=True
     )  # angular spacing
-    ang_scale = ang_scale[7:n_points-7]
+    ang_scale = ang_scale[7 : n_points - 7]
     for val in ang_scale:
         z_axis.append(float(end_radius) * sin(val))
     for z in z_axis:
@@ -50,7 +50,7 @@ def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
     cap1_out = []
     for sd in range(len(z_axis)):
         cap1_wire, cap1_face = make_rounded_rectangle_aperture(
-            aperture_height= thickness,
+            aperture_height=thickness,
             aperture_width=thickness,
             corner_radius=blend_radius,
         )
@@ -58,7 +58,7 @@ def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
         cap1_wire = rotate_at(cap1_wire, rotation_angles=(90, 180, 0))
         cap1_wire.translate(points[sd])
         cap1_wire.rotate(points[sd], Base.Vector(0, 1, 0), -(ang_scale[sd] + 90))
-        cap1_wire.translate(Base.Vector(0, Units.Quantity('0.025mm'),0))
+        cap1_wire.translate(Base.Vector(0, Units.Quantity("0.025mm"), 0))
         cap1_out.append(cap1_wire)
 
     makeSolid = True
@@ -75,7 +75,7 @@ def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
     end_cap = make_beampipe(pipe_aperture=arc_face, pipe_length=2 * thickness)
     end_cap = rotate_at(end_cap, rotation_angles=(0, 0, -90))
     end_cap.translate(Base.Vector(0, y_offset, 0))
-    end_cap.translate(Base.Vector(-Units.Quantity('0.7mm'), 0, 0))
+    end_cap.translate(Base.Vector(-Units.Quantity("0.7mm"), 0, 0))
     return sweep, end_cap
 
 
@@ -1446,8 +1446,8 @@ def make_stripline_folded(input_parameters, xyrotation=0):
             0,
         )
     )
-    end_cap.rotate( Base.Vector(0,0,0), Base.Vector(1,0,0), 90)
-    end_sweep.rotate( Base.Vector(0,0,0), Base.Vector(1,0,0), 90)
+    end_cap.rotate(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0), 90)
+    end_sweep.rotate(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0), 90)
     end_sweep2 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
     # end_sweep3 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
     # end_sweep4 = end_sweep2.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
@@ -1473,7 +1473,6 @@ def make_stripline_folded(input_parameters, xyrotation=0):
     stripline = stripline.fuse(end_sweep2)
     # stripline = stripline.fuse(end_sweep3)
     # stripline = stripline.fuse(end_sweep4)
-
 
     if "Launch_height" in input_parameters:
         us_launch = Part.makeCone(
@@ -1571,14 +1570,14 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         arc_outer_radius=input_parameters["stripline_offset"]
         + input_parameters["stripline_thickness"],
         arc_length=input_parameters["stripline_width"],
-        blend_radius=Units.Quantity("0.75 mm"),
+        blend_radius=input_parameters["stripline_blend_radius"],
     )
     stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture(
         arc_inner_radius=input_parameters["stripline_offset"],
         arc_outer_radius=input_parameters["stripline_offset"]
         + input_parameters["stripline_thickness"],
         arc_length=input_parameters["stripline_taper_end_width"],
-        blend_radius=Units.Quantity("0.75 mm"),
+        blend_radius=input_parameters["stripline_blend_radius"],
     )
 
     stripline_main = make_beampipe(
@@ -1676,8 +1675,7 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
     )
     end_cap.translate(
         Base.Vector(
-            input_parameters["total_stripline_length"] / 2.0 
-            - Units.Quantity("1.7mm"),
+            input_parameters["total_stripline_length"] / 2.0,
             0,
             0,
         )
@@ -1695,7 +1693,7 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
     rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
 
     if "Launch_height" in input_parameters:
-        return stripline, launch_vac, end_cap, end_sweep
+        return stripline, launch_vac
     else:
         return stripline
 
@@ -1804,5 +1802,3 @@ def make_stripline(input_parameters, xyrotation=0):
     else:
         rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
         return stripline
-
-
