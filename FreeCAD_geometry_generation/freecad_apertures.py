@@ -1,4 +1,4 @@
-from math import asin, atan,  cos, pi, radians, sin, sqrt
+from math import asin, atan, cos, pi, radians, sin, sqrt
 from FreeCAD import Base, Units
 import Part
 from FreeCAD_geometry_generation.freecad_operations import rotate_cartesian
@@ -87,6 +87,7 @@ def make_rectangle_aperture(aperture_height, aperture_width):
     face1 = Part.Face(wire1)
     return wire1, face1
 
+
 def make_rounded_rectangle_aperture(aperture_height, aperture_width, corner_radius):
     """Creates a wire outline of a rectangle.
     aperture_height and aperture_width are the full height and width.
@@ -106,7 +107,7 @@ def make_rounded_rectangle_aperture(aperture_height, aperture_width, corner_radi
     v3 = Base.Vector(0, aperture_height / 2.0, aperture_width / 2.0 - corner_radius)
     v4 = Base.Vector(0, aperture_height / 2.0 - corner_radius, aperture_width / 2.0)
     v5 = Base.Vector(0, -aperture_height / 2.0 + corner_radius, aperture_width / 2.0)
-    v6 = Base.Vector(0, -aperture_height / 2.0, aperture_width / 2.0 -corner_radius)
+    v6 = Base.Vector(0, -aperture_height / 2.0, aperture_width / 2.0 - corner_radius)
     v7 = Base.Vector(0, -aperture_height / 2.0, -aperture_width / 2.0 + corner_radius)
     v8 = Base.Vector(0, -aperture_height / 2.0 + corner_radius, -aperture_width / 2.0)
     # Create lines
@@ -115,11 +116,27 @@ def make_rounded_rectangle_aperture(aperture_height, aperture_width, corner_radi
     line3 = Part.LineSegment(v6, v7)
     line4 = Part.LineSegment(v8, v1)
 
-    centre_curve_offset = corner_radius * (1 - 1/sqrt(2))
-    vc1 = Base.Vector(0, aperture_height /2.0 - centre_curve_offset, -aperture_width / 2.0 + centre_curve_offset)
-    vc2 = Base.Vector(0, aperture_height /2.0 - centre_curve_offset, aperture_width / 2.0 - centre_curve_offset)
-    vc3 = Base.Vector(0, -aperture_height /2.0 + centre_curve_offset, aperture_width / 2.0 - centre_curve_offset)
-    vc4 = Base.Vector(0, -aperture_height /2.0 + centre_curve_offset, -aperture_width / 2.0 + centre_curve_offset)
+    centre_curve_offset = corner_radius * (1 - 1 / sqrt(2))
+    vc1 = Base.Vector(
+        0,
+        aperture_height / 2.0 - centre_curve_offset,
+        -aperture_width / 2.0 + centre_curve_offset,
+    )
+    vc2 = Base.Vector(
+        0,
+        aperture_height / 2.0 - centre_curve_offset,
+        aperture_width / 2.0 - centre_curve_offset,
+    )
+    vc3 = Base.Vector(
+        0,
+        -aperture_height / 2.0 + centre_curve_offset,
+        aperture_width / 2.0 - centre_curve_offset,
+    )
+    vc4 = Base.Vector(
+        0,
+        -aperture_height / 2.0 + centre_curve_offset,
+        -aperture_width / 2.0 + centre_curve_offset,
+    )
 
     arc1 = Part.Arc(v1, vc1, v2)
     arc2 = Part.Arc(v3, vc2, v4)
@@ -150,7 +167,9 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
         face1 (FreeCAD face definition): A surface description of the shape.
     """
     # X intersection of keyhole with pipe.
-    x_intersection = Units.Quantity(sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2),1 )
+    x_intersection = Units.Quantity(
+        sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2), 1
+    )
     # Create the initial four vertices for the lines.
     v1 = Base.Vector(0, keyhole_height / 2.0, x_intersection)
     v2 = Base.Vector(
@@ -182,6 +201,7 @@ def make_keyhole_aperture(pipe_radius, keyhole_height, keyhole_width):
     face1 = Part.Face(wire1)
     return wire1, face1
 
+
 def make_keyhole_aperture_flat_end(pipe_radius, keyhole_height, keyhole_width):
     """Creates a wire outline of a circular pipe with a keyhole extension on the side.
     aperture_height and aperture_width are the full height and width
@@ -198,15 +218,13 @@ def make_keyhole_aperture_flat_end(pipe_radius, keyhole_height, keyhole_width):
         face1 (FreeCAD face definition): A surface description of the shape.
     """
     # X intersection of keyhole with pipe.
-    x_intersection = Units.Quantity(sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2),1 )
+    x_intersection = Units.Quantity(
+        sqrt(pipe_radius ** 2 - (keyhole_height / 2.0) ** 2), 1
+    )
     # Create the initial four vertices for the lines.
     v1 = Base.Vector(0, keyhole_height / 2.0, x_intersection)
-    v2 = Base.Vector(
-        0, keyhole_height / 2.0, keyhole_width
-    )
-    v3 = Base.Vector(
-        0, -keyhole_height / 2.0, keyhole_width
-    )
+    v2 = Base.Vector(0, keyhole_height / 2.0, keyhole_width)
+    v3 = Base.Vector(0, -keyhole_height / 2.0, keyhole_width)
     v4 = Base.Vector(0, -keyhole_height / 2.0, x_intersection)
     v5 = Base.Vector(0, 0, x_intersection + keyhole_width)
     # Create lines
@@ -367,6 +385,7 @@ def make_arc_aperture(
     face1 = Part.Face(wire1)
     return wire1, face1
 
+
 def make_arched_cutout_aperture(aperture_height, aperture_width, arc_radius):
     """Creates a wire outline of a rectangle with an arc removed from the centre of one edge.
 
@@ -408,7 +427,10 @@ def make_arched_cutout_aperture(aperture_height, aperture_width, arc_radius):
 
     return wire1, face1
 
-def make_truncated_arched_cutout_aperture(aperture_height, centre_position, aperture_width, arc_radius):
+
+def make_truncated_arched_cutout_aperture(
+    aperture_height, centre_position, aperture_width, arc_radius
+):
     """Creates a wire outline of a rectangle with an arc removed from the centre of one edge.
 
     Args:
@@ -424,8 +446,12 @@ def make_truncated_arched_cutout_aperture(aperture_height, centre_position, aper
     # Create the initial four vertices where line meets curve.
     v1 = Base.Vector(0, aperture_height - arc_radius, -aperture_width + centre_position)
     v2 = Base.Vector(0, aperture_height - arc_radius, centre_position)
-    v3 = Base.Vector(0, -float(arc_radius) + sqrt(arc_radius ** 2 - centre_position ** 2), centre_position)
-    v4 = Base.Vector(0, -arc_radius,-arc_radius)
+    v3 = Base.Vector(
+        0,
+        -float(arc_radius) + sqrt(arc_radius ** 2 - centre_position ** 2),
+        centre_position,
+    )
+    v4 = Base.Vector(0, -arc_radius, -arc_radius)
     v5 = Base.Vector(0, -arc_radius, -aperture_width + centre_position)
     cv1 = Base.Vector(
         0,
@@ -469,8 +495,8 @@ def make_arched_corner_cutout_aperture(aperture_height, aperture_width, arc_radi
     v5 = Base.Vector(0, -aperture_height + arc_radius, 0)
     cv1 = Base.Vector(
         0,
-        -float(aperture_height) + sqrt(arc_radius/2.0),
-        sqrt(arc_radius/2.0),
+        -float(aperture_height) + sqrt(arc_radius / 2.0),
+        sqrt(arc_radius / 2.0),
     )
     # Create lines
     line1 = Part.LineSegment(v5, v1)
@@ -487,6 +513,7 @@ def make_arched_corner_cutout_aperture(aperture_height, aperture_width, arc_radi
     face1 = Part.Face(wire1)
 
     return wire1, face1
+
 
 def make_arched_base_aperture(aperture_height, aperture_width, arc_radius):
     """Creates a wire outline of a rectangle with an arc removed from one edge..
@@ -593,8 +620,6 @@ def make_cylinder_with_inserts(
     hi = inner_radius * cos(radians(insert_angle))
     vo = outer_radius * sin(radians(insert_angle))
     vi = inner_radius * sin(radians(insert_angle))
-    bh = blend_radius * cos(radians(insert_angle))
-    bv = blend_radius * sin(radians(insert_angle))
 
     p1 = Base.Vector(0, ho, vo)
     p2 = Base.Vector(0, -ho, vo)
@@ -610,24 +635,26 @@ def make_cylinder_with_inserts(
     cp4 = Base.Vector(0, inner_radius, 0)
 
     if blend_radius != 0:
-        p1_1 = Base.Vector(0, ho - bh, vo - bv)
-        cp1_1 = Base.Vector(0, ho - bh / 1.8, vo)
-        p1_2 = Base.Vector(0, ho - bh, vo + bv)
-        p2_1 = Base.Vector(0, -ho + bh, vo + bv)
-        cp2_1 = Base.Vector(0, -ho + bh / 1.8, vo)
-        p2_2 = Base.Vector(0, -ho + bh, vo - bv)
+        bh = blend_radius * cos(radians(insert_angle))
+        bv = blend_radius * sin(radians(insert_angle))
+        # p1_1 = Base.Vector(0, ho - bh, vo - bv)
+        # cp1_1 = Base.Vector(0, ho - bh / 1.8, vo)
+        # p1_2 = Base.Vector(0, ho - bh, vo + bv)
+        # p2_1 = Base.Vector(0, -ho + bh, vo + bv)
+        # cp2_1 = Base.Vector(0, -ho + bh / 1.8, vo)
+        # p2_2 = Base.Vector(0, -ho + bh, vo - bv)
         p3_1 = Base.Vector(0, -hi - bh, vi + bv)
         cp3_1 = Base.Vector(0, -hi - bh / 2.5, vi)
         p3_2 = Base.Vector(0, -hi - bh / 2, vi - bv)
         p4_1 = Base.Vector(0, -hi - bh / 2, -vi + bv)
         cp4_1 = Base.Vector(0, -hi - bh / 2.5, -vi)
         p4_2 = Base.Vector(0, -hi - bh, -vi - bv)
-        p5_1 = Base.Vector(0, -ho + bh, -vo + bv)
-        cp5_1 = Base.Vector(0, -ho + bh / 1.8, -vo)
-        p5_2 = Base.Vector(0, -ho + bh, -vo - bv)
-        p6_1 = Base.Vector(0, ho - bh, -vo - bv)
-        cp6_1 = Base.Vector(0, ho - bh / 1.8, -vo)
-        p6_2 = Base.Vector(0, ho - bh, -vo + bv)
+        # p5_1 = Base.Vector(0, -ho + bh, -vo + bv)
+        # cp5_1 = Base.Vector(0, -ho + bh / 1.8, -vo)
+        # p5_2 = Base.Vector(0, -ho + bh, -vo - bv)
+        # p6_1 = Base.Vector(0, ho - bh, -vo - bv)
+        # cp6_1 = Base.Vector(0, ho - bh / 1.8, -vo)
+        # p6_2 = Base.Vector(0, ho - bh, -vo + bv)
         p7_1 = Base.Vector(0, hi + bh, -vi - bv)
         cp7_1 = Base.Vector(0, hi + bh / 2.5, -vi)
         p7_2 = Base.Vector(0, hi + bh / 2, -vi + bv)
@@ -636,22 +663,22 @@ def make_cylinder_with_inserts(
         p8_2 = Base.Vector(0, hi + bh, vi + bv)
 
         # Create lines
-        line1 = Part.LineSegment(p2_2, p3_1)
-        line2 = Part.LineSegment(p4_2, p5_1)
-        line3 = Part.LineSegment(p6_2, p7_1)
-        line4 = Part.LineSegment(p8_2, p1_1)
+        line1 = Part.LineSegment(p2, p3_1)
+        line2 = Part.LineSegment(p4_2, p5)
+        line3 = Part.LineSegment(p6, p7_1)
+        line4 = Part.LineSegment(p8_2, p1)
         # Create main curves
-        arc1 = Part.Arc(p1_2, cp1, p2_1)
-        arc3 = Part.Arc(p5_2, cp3, p6_1)
+        arc1 = Part.Arc(p1, cp1, p2)
+        arc3 = Part.Arc(p5, cp3, p6)
         arc2 = Part.Arc(p3_2, cp2, p4_1)
         arc4 = Part.Arc(p7_2, cp4, p8_1)
         # Create blending curves
-        arc1_1 = Part.Arc(p1_1, cp1_1, p1_2)
-        arc2_1 = Part.Arc(p2_1, cp2_1, p2_2)
+        # arc1_1 = Part.Arc(p1_1, cp1_1, p1_2)
+        # arc2_1 = Part.Arc(p2_1, cp2_1, p2_2)
         arc3_1 = Part.Arc(p3_1, cp3_1, p3_2)
         arc4_1 = Part.Arc(p4_1, cp4_1, p4_2)
-        arc5_1 = Part.Arc(p5_1, cp5_1, p5_2)
-        arc6_1 = Part.Arc(p6_1, cp6_1, p6_2)
+        # arc5_1 = Part.Arc(p5_1, cp5_1, p5_2)
+        # arc6_1 = Part.Arc(p6_1, cp6_1, p6_2)
         arc7_1 = Part.Arc(p7_1, cp7_1, p7_2)
         arc8_1 = Part.Arc(p8_1, cp8_1, p8_2)
         # Make a shape
@@ -660,17 +687,17 @@ def make_cylinder_with_inserts(
                 arc4,
                 arc8_1,
                 line4,
-                arc1_1,
+                # arc1_1,
                 arc1,
-                arc2_1,
+                # arc2_1,
                 line1,
                 arc3_1,
                 arc2,
                 arc4_1,
                 line2,
-                arc5_1,
+                # arc5_1,
                 arc3,
-                arc6_1,
+                # arc6_1,
                 line3,
                 arc7_1,
             ]
@@ -999,7 +1026,14 @@ def make_circular_aperture(aperture_radius):
     return wire1, face1
 
 
-def make_octagonal_aperture_asymetric(aperture_height, aperture_width1, aperture_width2, side_length1, side_length2, tb_length):
+def make_octagonal_aperture_asymetric(
+    aperture_height,
+    aperture_width1,
+    aperture_width2,
+    side_length1,
+    side_length2,
+    tb_length,
+):
     """Creates a wire outline of a symmetric octagon specified by 4 inputs.
     aperture_height and aperture_width are the full height and width
     (the same as if it were a rectangle)
@@ -1020,7 +1054,7 @@ def make_octagonal_aperture_asymetric(aperture_height, aperture_width1, aperture
     # Create the initial eight vertices where line meets curve.
     v1 = Base.Vector(0, aperture_height / 2.0, -tb_length / 2.0)
     v2 = Base.Vector(0, aperture_height / 2.0, tb_length / 2.0)
-    v3 = Base.Vector(0, side_length1 / 2.0, aperture_width1 )
+    v3 = Base.Vector(0, side_length1 / 2.0, aperture_width1)
     v4 = Base.Vector(0, -side_length1 / 2.0, aperture_width1)
     v5 = Base.Vector(0, -aperture_height / 2.0, tb_length / 2.0)
     v6 = Base.Vector(0, -aperture_height / 2.0, -tb_length / 2.0)
@@ -1043,6 +1077,7 @@ def make_octagonal_aperture_asymetric(aperture_height, aperture_width1, aperture
     # Make a face.
     face1 = Part.Face(wire1)
     return wire1, face1
+
 
 def make_octagonal_aperture(aperture_height, aperture_width, side_length, tb_length):
     """Creates a wire outline of a symmetric octagon specified by 4 inputs.
@@ -1088,6 +1123,7 @@ def make_octagonal_aperture(aperture_height, aperture_width, side_length, tb_len
     # Make a face.
     face1 = Part.Face(wire1)
     return wire1, face1
+
 
 def make_octagonal_aperture_with_keyholes_and_antichamber(
     aperture_height,
