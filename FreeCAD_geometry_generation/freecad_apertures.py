@@ -386,6 +386,181 @@ def make_arc_aperture(
     return wire1, face1
 
 
+def make_arc_aperture_with_notched_flat(
+    arc_inner_radius,
+    arc_outer_radius,
+    arc_length,
+    flat_fraction,
+    notch_height,
+    notch_depth,
+    notch_blend_radius=Units.Quantity("0 mm"),
+    blend_radius=Units.Quantity("0 mm"),
+):
+    """Creates a wire outline of an arc with a flat section on the inner profile. In that flat section there is a cut out.
+
+    Args:
+        arc_inner_radius (float): Radius of the inside edge of the arc.
+        arc_outer_radius (float): Radius of the outside edge of the arc.
+        arc_length (float): The length of the arc (measured in angle in radians)
+        flat_fraction (float): The proportion of the inner surface which is flat.
+        notch_height (float): The height of the cut out.
+        notch_depth (float): The depth of the cut out.
+        notch_blend_radius (float): the amount of smoothing between the inner flat and the cut out.
+        blend_radius (float): The amount to smooth the edges on the curved sections.
+
+
+    Returns:
+        wire1 (FreeCAD wire definition): An outline description of the shape.
+        face1 (FreeCAD face definition): A surface description of the shape.
+    """
+
+    half_angle = arc_length / 2.0  # angles are in radian here
+    flat_angle = half_angle * flat_fraction
+    ho = arc_outer_radius * sin(radians(half_angle))
+    vo = arc_outer_radius * cos(radians(half_angle))
+    hi = arc_inner_radius * sin(radians(half_angle))
+    vi = arc_inner_radius * cos(radians(half_angle))
+    hif = arc_inner_radius * sin(radians(flat_angle))
+    vif = arc_inner_radius * cos(radians(flat_angle))
+    hifcp = arc_inner_radius * sin(
+        radians(flat_angle + 0.5 * (half_angle - flat_angle))
+    )
+    vifcp = arc_inner_radius * cos(
+        radians(flat_angle + 0.5 * (half_angle - flat_angle))
+    )
+    # Create vector points for the ends and midpoint of the arcs
+    p1 = Base.Vector(0, -ho, vo)
+    p2 = Base.Vector(0, ho, vo)
+    p3 = Base.Vector(0, hi, vi)
+    p4 = Base.Vector(0, hif, vif)
+    p5 = Base.Vector(0, notch_height / 2.0, vif)
+    p6 = Base.Vector(0, notch_height / 2.0, vif + notch_depth - notch_height / 2.0)
+    p7 = Base.Vector(0, -notch_height / 2.0, vif + notch_depth - notch_height / 2.0)
+    p8 = Base.Vector(0, -notch_height / 2.0, vif)
+    p9 = Base.Vector(0, -hif, vif)
+    p10 = Base.Vector(0, -hi, vi)
+    cp1 = Base.Vector(0, 0, arc_outer_radius)
+    cp2 = Base.Vector(0, hifcp, vifcp)
+    cp3 = Base.Vector(0, 0, vif + notch_depth)
+    cp4 = Base.Vector(0, -hifcp, vifcp)
+
+    # Create curves
+    arc1 = Part.Arc(p1, cp1, p2)
+    arc2 = Part.Arc(p3, cp2, p4)
+    arc3 = Part.Arc(p6, cp3, p7)
+    arc4 = Part.Arc(p9, cp4, p10)
+
+    # Create lines
+    line1 = Part.LineSegment(p2, p3)
+    line2 = Part.LineSegment(p4, p5)
+    line3 = Part.LineSegment(p5, p6)
+    line4 = Part.LineSegment(p7, p8)
+    line5 = Part.LineSegment(p8, p9)
+    line6 = Part.LineSegment(p10, p1)
+
+    if blend_radius == 0:
+        # Make a shape
+        shape1 = Part.Shape(
+            [arc1, line1, arc2, line2, line3, arc3, line4, line5, arc4, line6]
+        )
+    else:
+        hdiff = abs(ho - hi)
+        vdiff = abs(vo - vi)
+        line_angle = atan(vdiff / hdiff)
+        hp = blend_radius * cos(line_angle)
+        vp = blend_radius * sin(line_angle)
+        hap = blend_radius * cos(pi / 2 - line_angle)
+        vap = blend_radius * sin(pi / 2 - line_angle)
+
+        hifcp1 = arc_inner_radius * sin(
+            radians(flat_angle) + 0.5 * (atan((hi-hap)/(vi+vap)) - radians(flat_angle))
+        )
+        vifcp1 = arc_inner_radius * cos(
+            radians(flat_angle) + 0.5 * (atan((hi-hap)/(vi+vap)) - radians(flat_angle))
+        )
+        cpp2 = Base.Vector(0, hifcp1, vifcp1)
+        cpp4 = Base.Vector(0, -hifcp1, vifcp1)
+
+        R = Units.Quantity(
+            sqrt(blend_radius ** 2 + blend_radius ** 2), Units.Unit(1)
+        )  # Setting units to mm
+        hm1 = (R - blend_radius) * sin(-pi / 4 - line_angle + pi)
+        vm1 = (R - blend_radius) * cos(-pi / 4 - line_angle + pi)
+        hm2 = (R - blend_radius) * sin(-pi / 4 - line_angle)
+        vm2 = (R - blend_radius) * cos(-pi / 4 - line_angle)
+        hm3 = (R - blend_radius) * sin(-pi / 2 - line_angle)
+        vm3 = (R - blend_radius) * cos(-pi / 2 - line_angle)
+
+        hp11 = -ho + hp
+        hp12 = -ho + hap
+        hp21 = ho - hap
+        hp22 = ho - hp
+        hp31 = hi + hap
+        hp32 = hi - hp
+        hp101 = -hi + hp
+        hp102 = -hi - hap
+        vp11 = vo - vp
+        vp12 = vo + vap
+        vp21 = vo + vap
+        vp22 = vo - vp
+        vp31 = vi + vap
+        vp32 = vi + vp
+        vp101 = vi + vp
+        vp102 = vi + vap
+        p1_1 = Base.Vector(0, hp11, vp11)
+        p1_2 = Base.Vector(0, hp12, vp12)
+        p2_1 = Base.Vector(0, hp21, vp21)
+        p2_2 = Base.Vector(0, hp22, vp22)
+        p3_1 = Base.Vector(0, hp31, vp31)
+        p3_2 = Base.Vector(0, hp32, vp32)
+        p10_1 = Base.Vector(0, hp101, vp101)
+        p10_2 = Base.Vector(0, hp102, vp102)
+
+        cp1_1 = Base.Vector(0, -ho + hm1, vo - vm1)
+        cp2_1 = Base.Vector(0, ho + hm2, vo + vm2)
+        cp4_1 = Base.Vector(0, -hi - hm3, vi - vm3*1.4)
+        cp3_1 = Base.Vector(0, hi + hm3, vi - vm3*1.4)
+
+        # Create curves
+        arcp1 = Part.Arc(p1_1, cp1_1, p1_2)
+        arcp2 = Part.Arc(p1_2, cp1, p2_1)
+        arcp3 = Part.Arc(p2_1, cp2_1, p2_2)
+        arcp4 = Part.Arc(p3_1, cp3_1, p3_2)
+        arcp5 = Part.Arc(p3_2, cpp2, p4)
+        arcp6 = Part.Arc(p9, cpp4, p10_1)
+        arcp7 = Part.Arc(p10_1, cp4_1, p10_2)
+
+        # Create lines
+        linep1 = Part.LineSegment(p2_2, p3_1)
+        linep2 = Part.LineSegment(p10_2, p1_1)
+
+        # Make a shape
+        shape1 = Part.Shape(
+            [
+                arcp1,
+                arcp2,
+                arcp3,
+                linep1,
+                arcp4,
+                arcp5,
+                line2,
+                line3,
+                arc3,
+                line4,
+                line5,
+                arcp6,
+                arcp7,
+                linep2,
+            ]
+        )
+
+    # Make a wire outline.
+    wire1 = Part.Wire(shape1.Edges)
+    # Make a face.
+    face1 = Part.Face(wire1)
+    return wire1, face1
+
+
 def make_arched_cutout_aperture(aperture_height, aperture_width, arc_radius):
     """Creates a wire outline of a rectangle with an arc removed from the centre of one edge.
 
