@@ -14,6 +14,7 @@ from FreeCAD_geometry_generation.freecad_apertures import (
     make_circular_aperture,
     make_truncated_arched_cutout_aperture,
     make_rounded_rectangle_aperture,
+    make_arc_aperture_with_notched_flat
 )
 from FreeCAD_geometry_generation.freecad_operations import (
     make_beampipe,
@@ -1565,20 +1566,44 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         input_parameters["total_stripline_length"]
         - 2 * input_parameters["stripline_taper_length"]
     )
-    stripline_main_wire, stripline_main_face = make_arc_aperture(
-        arc_inner_radius=input_parameters["stripline_offset"],
-        arc_outer_radius=input_parameters["stripline_offset"]
-        + input_parameters["stripline_thickness"],
-        arc_length=input_parameters["stripline_width"],
-        blend_radius=input_parameters["stripline_blend_radius"],
-    )
-    stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture(
-        arc_inner_radius=input_parameters["stripline_offset"],
-        arc_outer_radius=input_parameters["stripline_offset"]
-        + input_parameters["stripline_thickness"],
-        arc_length=input_parameters["stripline_taper_end_width"],
-        blend_radius=input_parameters["stripline_blend_radius"],
-    )
+    if input_parameters["stripline_flat_inner_surface"]:
+        stripline_main_wire, stripline_main_face = make_arc_aperture_with_notched_flat(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+            flat_fraction=input_parameters["flat_fraction"],
+            notch_height=input_parameters["shadowing_cutout_height"],
+            notch_depth=input_parameters["shadowing_cutout_depth"],
+            notch_blend_radius=input_parameters["shadowing_cutout_blend_radius"],
+        )
+        stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture_with_notched_flat(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_taper_end_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+            flat_fraction=input_parameters["flat_fraction"],
+            notch_height=input_parameters["shadowing_cutout_height"],
+            notch_depth=input_parameters["shadowing_cutout_depth"],
+            notch_blend_radius=input_parameters["shadowing_cutout_blend_radius"],
+        )
+    else:
+        stripline_main_wire, stripline_main_face = make_arc_aperture(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+        )
+        stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_taper_end_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+        )
 
     stripline_main = make_beampipe(
         pipe_aperture=stripline_main_face,
