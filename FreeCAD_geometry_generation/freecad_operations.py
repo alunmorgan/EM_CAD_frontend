@@ -33,6 +33,15 @@ def breakup_lists(input_dict):
             output_dict[key] = input_dict[key]
     return output_dict
 
+def parse_input_parameters(input_parameters):
+    for n in input_parameters.keys():
+        if type(input_parameters[n]) is list:
+            for eh in range(len(input_parameters[n])):
+                input_parameters[n][eh] = Units.Quantity(input_parameters[n][eh])
+        else:
+            input_parameters[n] = Units.Quantity(input_parameters[n])
+    print("Parsing completed")
+    return input_parameters
 
 def base_model(
     model_name, model_function, input_params, output_path, accuracy=2, just_cad=0
@@ -62,6 +71,7 @@ def base_model(
     # in the parameter sweeps.
     output_loc = copy.copy(output_path)
     try:
+        inputs = parse_input_parameters(inputs)
         parts_list = model_function(inputs)
 
         generate_output_files(
@@ -137,6 +147,7 @@ def parameter_sweep(
 
         model_tag = "".join([sweep_variable, "_sweep_value_", value_string])
         try:
+            inputs = parse_input_parameters(inputs)
             parts_list = model_function(inputs)
             generate_output_files(
                 copy.copy(output_path),
