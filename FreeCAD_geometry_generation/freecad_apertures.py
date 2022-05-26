@@ -433,93 +433,118 @@ def make_arc_aperture_with_notched_flat(
     p2 = Base.Vector(0, ho, vo)
     p3 = Base.Vector(0, hi, vi)
     p4 = Base.Vector(0, hif, vif)
-    p5 = Base.Vector(0, notch_height / 2.0, vif)
+    p5_1 = Base.Vector(0, notch_height / 2.0 + notch_blend_radius, vif)
+    p5_2 = Base.Vector(0, notch_height / 2.0, vif + notch_blend_radius)
     p6 = Base.Vector(0, notch_height / 2.0, vif + notch_depth - notch_height / 2.0)
     p7 = Base.Vector(0, -notch_height / 2.0, vif + notch_depth - notch_height / 2.0)
-    p8 = Base.Vector(0, -notch_height / 2.0, vif)
+    p8_1 = Base.Vector(0, -notch_height / 2.0, vif + notch_blend_radius)
+    p8_2 = Base.Vector(0, -notch_height / 2.0 - notch_blend_radius, vif)
     p9 = Base.Vector(0, -hif, vif)
     p10 = Base.Vector(0, -hi, vi)
     cp1 = Base.Vector(0, 0, arc_outer_radius)
     cp2 = Base.Vector(0, hifcp, vifcp)
     cp3 = Base.Vector(0, 0, vif + notch_depth)
     cp4 = Base.Vector(0, -hifcp, vifcp)
+    cp5 = Base.Vector(0, notch_height / 2.0 + notch_blend_radius * (1 - 1 / sqrt(2)), vif + notch_blend_radius  * (1- 1 / sqrt(2)))
+    cp6 = Base.Vector(0, -notch_height / 2.0 - notch_blend_radius * (1 - 1 / sqrt(2)), vif + notch_blend_radius * (1 - 1 / sqrt(2)))
 
     # Create curves
     arc1 = Part.Arc(p1, cp1, p2)
     arc2 = Part.Arc(p3, cp2, p4)
     arc3 = Part.Arc(p6, cp3, p7)
     arc4 = Part.Arc(p9, cp4, p10)
+    arc5 = Part.Arc(p5_1, cp5, p5_2)
+    arc6 = Part.Arc(p8_1, cp6, p8_2)
 
     # Create lines
     line1 = Part.LineSegment(p2, p3)
-    line2 = Part.LineSegment(p4, p5)
-    line3 = Part.LineSegment(p5, p6)
-    line4 = Part.LineSegment(p7, p8)
-    line5 = Part.LineSegment(p8, p9)
+    line2 = Part.LineSegment(p4, p5_1)
+    line3 = Part.LineSegment(p5_2, p6)
+    line4 = Part.LineSegment(p7, p8_1)
+    line5 = Part.LineSegment(p8_2, p9)
     line6 = Part.LineSegment(p10, p1)
 
     if blend_radius == 0:
         # Make a shape
         shape1 = Part.Shape(
-            [arc1, line1, arc2, line2, line3, arc3, line4, line5, arc4, line6]
+            [arc1, line1, arc2, line2, arc5, line3, arc3, line4, arc6, line5, arc4, line6]
         )
     else:
-        hdiff = abs(ho - hi)
-        vdiff = abs(vo - vi)
-        line_angle = atan(vdiff / hdiff)
-        hp = blend_radius * cos(line_angle)
-        vp = blend_radius * sin(line_angle)
-        hap = blend_radius * cos(pi / 2 - line_angle)
-        vap = blend_radius * sin(pi / 2 - line_angle)
+        hp1_1 = -ho + blend_radius * sin(radians(half_angle))
+        vp1_1 = vo - blend_radius * cos(radians(half_angle))
+        p1_1 = Base.Vector(0, hp1_1, vp1_1)
+        hp1_2 = -ho + blend_radius * cos(radians(half_angle))
+        vp1_2 = vo + blend_radius * sin(radians(half_angle))
+        p1_2 = Base.Vector(0, hp1_2, vp1_2)
+        p1_centre_h = hp1_1 + 0.5 * abs(hp1_1 - hp1_2)
+        p1_centre_v = vp1_1 + 0.5 * abs(vp1_1 - vp1_2)
+        p1_angle = atan(abs(vp1_1 - vp1_2) / abs(hp1_1 - hp1_2))
+        half_chord = 0.5 * sqrt((vp1_1 - vp1_2) ** 2 + (hp1_1 - hp1_2) ** 2)
+        R_correction1 = Units.Quantity(
+            sqrt(blend_radius ** 2 - Units.Quantity(half_chord, 1) ** 2), 1
+        )
+        hcp1_1 = p1_centre_h - (blend_radius - R_correction1) * sin(p1_angle)
+        vcp1_1 = p1_centre_v + (blend_radius - R_correction1) * cos(p1_angle)
+        cp1_1 = Base.Vector(0, hcp1_1, vcp1_1)
 
-        hifcp1 = arc_inner_radius * sin(
-            radians(flat_angle) + 0.5 * (atan((hi-hap)/(vi+vap)) - radians(flat_angle))
+        hp2_1 = ho - blend_radius * cos(radians(half_angle))
+        vp2_1 = vo + blend_radius * sin(radians(half_angle))
+        p2_1 = Base.Vector(0, hp2_1, vp2_1)
+        hp2_2 = ho - blend_radius * sin(radians(half_angle))
+        vp2_2 = vo - blend_radius * cos(radians(half_angle))
+        p2_2 = Base.Vector(0, hp2_2, vp2_2)
+        p2_centre_h = hp2_1 + 0.5 * abs(hp2_1 - hp2_2)
+        p2_centre_v = vp2_1 - 0.5 * abs(vp2_1 - vp2_2)
+        p2_angle = atan(abs(vp2_1 - vp2_2) / abs(hp2_1 - hp2_2))
+        half_chord = 0.5 * sqrt((vp2_1 - vp2_2) ** 2 + (hp2_1 - hp2_2) ** 2)
+        R_correction2 = Units.Quantity(
+            sqrt(blend_radius ** 2 - Units.Quantity(half_chord, 1) ** 2), 1
         )
-        vifcp1 = arc_inner_radius * cos(
-            radians(flat_angle) + 0.5 * (atan((hi-hap)/(vi+vap)) - radians(flat_angle))
+        hcp2_1 = p2_centre_h + (blend_radius - R_correction2) * sin(p2_angle)
+        vcp2_1 = p2_centre_v + (blend_radius - R_correction2) * cos(p2_angle)
+        cp2_1 = Base.Vector(0, hcp2_1, vcp2_1)
+
+        hp3_1 = hi + blend_radius * sin(radians(half_angle))
+        vp3_1 = vi + blend_radius * cos(radians(half_angle))
+        p3_1 = Base.Vector(0, hp3_1, vp3_1)
+        hp3_2 = hi - blend_radius * cos(radians(half_angle))
+        vp3_2 = vi + blend_radius * sin(radians(half_angle))
+        p3_2 = Base.Vector(0, hp3_2, vp3_2)
+        p3_centre_h = hp3_1 - 0.5 * abs(hp3_1 - hp3_2)
+        p3_centre_v = vp3_1 - 0.5 * abs(vp3_1 - vp3_2)
+        p3_angle = atan(abs(vp3_1 - vp3_2) / abs(hp3_1 - hp3_2))
+        half_chord = 0.5 * sqrt((vp3_1 - vp3_2) ** 2 + (hp3_1 - hp3_2) ** 2)
+        R_correction3 = Units.Quantity(
+            sqrt(blend_radius ** 2 - Units.Quantity(half_chord, 1) ** 2), 1
         )
+        hcp3_1 = p3_centre_h + (blend_radius - R_correction3) * sin(p3_angle)
+        vcp3_1 = p3_centre_v - (blend_radius - R_correction3) * cos(p3_angle)
+        cp3_1 = Base.Vector(0, hcp3_1, vcp3_1)
+
+        hp10_1 = -hi + blend_radius * cos(radians(half_angle))
+        vp10_1 = vi + blend_radius * sin(radians(half_angle))
+        p10_1 = Base.Vector(0, hp10_1, vp10_1)
+        hp10_2 = -hi - blend_radius * sin(radians(half_angle))
+        vp10_2 = vi + blend_radius * cos(radians(half_angle))
+        p10_2 = Base.Vector(0, hp10_2, vp10_2)
+        p10_centre_h = hp10_1 - 0.5 * abs(hp10_1 - hp10_2)
+        p10_centre_v = vp10_1 + 0.5 * abs(vp10_1 - vp10_2)
+        p10_angle = atan(abs(vp10_1 - vp10_2) / abs(hp10_1 - hp10_2))
+        half_chord = 0.5 * sqrt((vp10_1 - vp10_2) ** 2 + (hp10_1 - hp10_2) ** 2)
+        R_correction10 = Units.Quantity(
+            sqrt(blend_radius ** 2 - Units.Quantity(half_chord, 1) ** 2), 1
+        )
+        hcp10_1 = p10_centre_h - (blend_radius - R_correction10) * sin(p10_angle)
+        vcp10_1 = p10_centre_v - (blend_radius - R_correction10) * cos(p10_angle)
+        cp10_1 = Base.Vector(0, hcp10_1, vcp10_1)
+
+        hdiff = abs(hif - hp10_1)
+        vdiff = abs(vif - vp10_1)
+        line_angle = atan(vdiff / hdiff)
+        hifcp1 = arc_inner_radius * sin(radians(flat_angle) + 0.5 * line_angle)
+        vifcp1 = arc_inner_radius * cos(radians(flat_angle) + 0.5 * line_angle)
         cpp2 = Base.Vector(0, hifcp1, vifcp1)
         cpp4 = Base.Vector(0, -hifcp1, vifcp1)
-
-        R = Units.Quantity(
-            sqrt(blend_radius ** 2 + blend_radius ** 2), Units.Unit(1)
-        )  # Setting units to mm
-        hm1 = (R - blend_radius) * sin(-pi / 4 - line_angle + pi)
-        vm1 = (R - blend_radius) * cos(-pi / 4 - line_angle + pi)
-        hm2 = (R - blend_radius) * sin(-pi / 4 - line_angle)
-        vm2 = (R - blend_radius) * cos(-pi / 4 - line_angle)
-        hm3 = (R - blend_radius) * sin(-pi / 2 - line_angle)
-        vm3 = (R - blend_radius) * cos(-pi / 2 - line_angle)
-
-        hp11 = -ho + hp
-        hp12 = -ho + hap
-        hp21 = ho - hap
-        hp22 = ho - hp
-        hp31 = hi + hap
-        hp32 = hi - hp
-        hp101 = -hi + hp
-        hp102 = -hi - hap
-        vp11 = vo - vp
-        vp12 = vo + vap
-        vp21 = vo + vap
-        vp22 = vo - vp
-        vp31 = vi + vap
-        vp32 = vi + vp
-        vp101 = vi + vp
-        vp102 = vi + vap
-        p1_1 = Base.Vector(0, hp11, vp11)
-        p1_2 = Base.Vector(0, hp12, vp12)
-        p2_1 = Base.Vector(0, hp21, vp21)
-        p2_2 = Base.Vector(0, hp22, vp22)
-        p3_1 = Base.Vector(0, hp31, vp31)
-        p3_2 = Base.Vector(0, hp32, vp32)
-        p10_1 = Base.Vector(0, hp101, vp101)
-        p10_2 = Base.Vector(0, hp102, vp102)
-
-        cp1_1 = Base.Vector(0, -ho + hm1, vo - vm1)
-        cp2_1 = Base.Vector(0, ho + hm2, vo + vm2)
-        cp4_1 = Base.Vector(0, -hi - hm3, vi - vm3*1.4)
-        cp3_1 = Base.Vector(0, hi + hm3, vi - vm3*1.4)
 
         # Create curves
         arcp1 = Part.Arc(p1_1, cp1_1, p1_2)
@@ -528,13 +553,12 @@ def make_arc_aperture_with_notched_flat(
         arcp4 = Part.Arc(p3_1, cp3_1, p3_2)
         arcp5 = Part.Arc(p3_2, cpp2, p4)
         arcp6 = Part.Arc(p9, cpp4, p10_1)
-        arcp7 = Part.Arc(p10_1, cp4_1, p10_2)
+        arcp7 = Part.Arc(p10_1, cp10_1, p10_2)
 
         # Create lines
         linep1 = Part.LineSegment(p2_2, p3_1)
         linep2 = Part.LineSegment(p10_2, p1_1)
 
-        # Make a shape
         shape1 = Part.Shape(
             [
                 arcp1,
@@ -544,9 +568,11 @@ def make_arc_aperture_with_notched_flat(
                 arcp4,
                 arcp5,
                 line2,
+                arc5,
                 line3,
                 arc3,
                 line4,
+                arc6,
                 line5,
                 arcp6,
                 arcp7,
@@ -809,87 +835,117 @@ def make_cylinder_with_inserts(
     cp2 = Base.Vector(0, -inner_radius, 0)
     cp4 = Base.Vector(0, inner_radius, 0)
 
-    if blend_radius != 0:
+   # Create lines
+    line1 = Part.LineSegment(p2, p3)
+    line2 = Part.LineSegment(p4, p5)
+    line3 = Part.LineSegment(p6, p7)
+    line4 = Part.LineSegment(p8, p1)
+    # Create curves
+    arc1 = Part.Arc(p1, cp1, p2)
+    arc3 = Part.Arc(p5, cp3, p6)
+    arc2 = Part.Arc(p4, cp2, p3)
+    arc4 = Part.Arc(p8, cp4, p7)
+    if blend_radius == 0:
+        # Make a shape
+        shape1 = Part.Shape([arc4, line4, arc1, line1, arc2, line2, arc3, line3])
+    else:
+        # shift required along the linear sections
         bh = blend_radius * cos(radians(insert_angle))
         bv = blend_radius * sin(radians(insert_angle))
-        # p1_1 = Base.Vector(0, ho - bh, vo - bv)
-        # cp1_1 = Base.Vector(0, ho - bh / 1.8, vo)
-        # p1_2 = Base.Vector(0, ho - bh, vo + bv)
-        # p2_1 = Base.Vector(0, -ho + bh, vo + bv)
-        # cp2_1 = Base.Vector(0, -ho + bh / 1.8, vo)
-        # p2_2 = Base.Vector(0, -ho + bh, vo - bv)
-        p3_1 = Base.Vector(0, -hi - bh, vi + bv)
-        cp3_1 = Base.Vector(0, -hi - bh / 2.5, vi)
-        p3_2 = Base.Vector(0, -hi - bh / 2, vi - bv)
-        p4_1 = Base.Vector(0, -hi - bh / 2, -vi + bv)
-        cp4_1 = Base.Vector(0, -hi - bh / 2.5, -vi)
-        p4_2 = Base.Vector(0, -hi - bh, -vi - bv)
-        # p5_1 = Base.Vector(0, -ho + bh, -vo + bv)
-        # cp5_1 = Base.Vector(0, -ho + bh / 1.8, -vo)
-        # p5_2 = Base.Vector(0, -ho + bh, -vo - bv)
-        # p6_1 = Base.Vector(0, ho - bh, -vo - bv)
-        # cp6_1 = Base.Vector(0, ho - bh / 1.8, -vo)
-        # p6_2 = Base.Vector(0, ho - bh, -vo + bv)
-        p7_1 = Base.Vector(0, hi + bh, -vi - bv)
-        cp7_1 = Base.Vector(0, hi + bh / 2.5, -vi)
-        p7_2 = Base.Vector(0, hi + bh / 2, -vi + bv)
-        p8_1 = Base.Vector(0, hi + bh / 2, vi - bv)
-        cp8_1 = Base.Vector(0, hi + bh / 2.5, vi)
-        p8_2 = Base.Vector(0, hi + bh, vi + bv)
+        # location along the arc sections
+        # length of the hypotonuse
+        lc = sqrt((inner_radius -hi) ** 2 + vi ** 2)
+        lc_frac = blend_radius / Units.Quantity(lc,1)
+        arcbh = inner_radius * cos(radians(insert_angle * (1 - lc_frac)))
+        arcbv = inner_radius * sin(radians(insert_angle * (1 - lc_frac)))
+        p3_1 = Base.Vector(0, -hi - bh, vi + bv)#
+        cp3_1 = Base.Vector(0, -hi - blend_radius * (1 - 1 / sqrt(2)), vi - blend_radius * (1 - 1 / sqrt(2)))
+        p3_2 = Base.Vector(0, -arcbh , arcbv)
+        p4_1 = Base.Vector(0, -arcbh , -arcbv)
+        cp4_1 = Base.Vector(0, -hi - blend_radius * (1 - 1 / sqrt(2)), -vi + blend_radius * (1 - 1 / sqrt(2)))
+        p4_2 = Base.Vector(0, -hi - bh, -vi - bv)#
+        p7_1 = Base.Vector(0, hi + bh, -vi - bv)#
+        cp7_1 = Base.Vector(0, hi + blend_radius * (1 - 1 / sqrt(2)), -vi + blend_radius * (1 - 1 / sqrt(2)))
+        p7_2 = Base.Vector(0, arcbh, -arcbv)
+        p8_1 = Base.Vector(0, arcbh, arcbv)
+        cp8_1 = Base.Vector(0, hi + blend_radius * (1 - 1 / sqrt(2)), vi - blend_radius * (1 - 1 / sqrt(2)))
+        p8_2 = Base.Vector(0, hi + bh, vi + bv)#
 
         # Create lines
         line1 = Part.LineSegment(p2, p3_1)
         line2 = Part.LineSegment(p4_2, p5)
         line3 = Part.LineSegment(p6, p7_1)
         line4 = Part.LineSegment(p8_2, p1)
+                # Create main curves
+        #arc1t1 = Part.LineSegment(p1, cp1)
+        #arc1t2 = Part.LineSegment(cp1, p2)
+        #arc3t1 = Part.LineSegment(p5, cp3)
+        #arc3t2 = Part.LineSegment(cp3, p6)
+        #arc2t1 = Part.LineSegment(p3_2, cp2)
+        #arc2t2 = Part.LineSegment(cp2, p4_1)
+        #arc4t1 = Part.LineSegment(p7_2, cp4)
+        #arc4t2 = Part.LineSegment(cp4, p8_1)
+
+        # Create blending curves
+        #arc3_1t1 = Part.LineSegment(p3_1, cp3_1)
+        #arc3_1t2 = Part.LineSegment(cp3_1, p3_2)
+        #arc4_1t1 = Part.LineSegment(p4_1, cp4_1)
+        #arc4_1t2 = Part.LineSegment(cp4_1, p4_2)
+        #arc7_1t1 = Part.LineSegment(p7_1, cp7_1)
+        #arc7_1t2 = Part.LineSegment(cp7_1, p7_2)
+        #arc8_1t1 = Part.LineSegment(p8_1, cp8_1)
+        #arc8_1t2 = Part.LineSegment(cp8_1, p8_2)
         # Create main curves
         arc1 = Part.Arc(p1, cp1, p2)
         arc3 = Part.Arc(p5, cp3, p6)
         arc2 = Part.Arc(p3_2, cp2, p4_1)
         arc4 = Part.Arc(p7_2, cp4, p8_1)
         # Create blending curves
-        # arc1_1 = Part.Arc(p1_1, cp1_1, p1_2)
-        # arc2_1 = Part.Arc(p2_1, cp2_1, p2_2)
         arc3_1 = Part.Arc(p3_1, cp3_1, p3_2)
         arc4_1 = Part.Arc(p4_1, cp4_1, p4_2)
-        # arc5_1 = Part.Arc(p5_1, cp5_1, p5_2)
-        # arc6_1 = Part.Arc(p6_1, cp6_1, p6_2)
         arc7_1 = Part.Arc(p7_1, cp7_1, p7_2)
         arc8_1 = Part.Arc(p8_1, cp8_1, p8_2)
         # Make a shape
+       # shape1 = Part.Shape(
+       #     [
+       #         arc4t1,
+       #         arc4t2,
+       #         arc8_1t1,
+       #         arc8_1t2,
+       #         line4,
+       #         arc1t1,
+       #         arc1t2,
+       #         line1,
+       #         arc3_1t1,
+       #         arc3_1t2,
+       #         arc2t1,
+       #         arc2t2,
+       #         arc4_1t1,
+       #         arc4_1t2,
+       #         line2,
+       #         arc3t1,
+       #         arc3t2,
+       #         line3,
+       #         arc7_1t1,
+       #         arc7_1t2,
+       #     ]
+       # )  
         shape1 = Part.Shape(
             [
                 arc4,
                 arc8_1,
                 line4,
-                # arc1_1,
                 arc1,
-                # arc2_1,
                 line1,
                 arc3_1,
                 arc2,
                 arc4_1,
                 line2,
-                # arc5_1,
                 arc3,
-                # arc6_1,
                 line3,
                 arc7_1,
             ]
-        )
-    else:
-        # Create lines
-        line1 = Part.LineSegment(p2, p3)
-        line2 = Part.LineSegment(p4, p5)
-        line3 = Part.LineSegment(p6, p7)
-        line4 = Part.LineSegment(p8, p1)
-        # Create curves
-        arc1 = Part.Arc(p1, cp1, p2)
-        arc3 = Part.Arc(p5, cp3, p6)
-        arc2 = Part.Arc(p4, cp2, p3)
-        arc4 = Part.Arc(p8, cp4, p7)
-        # Make a shape
-        shape1 = Part.Shape([arc4, line4, arc1, line1, arc2, line2, arc3, line3])
+        )  
 
     # Make a wire outline.
     wire1 = Part.Wire(shape1.Edges)
