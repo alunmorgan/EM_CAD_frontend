@@ -1061,14 +1061,16 @@ def make_stripline_feedthrough_parameterised(
     )
     # Pin stops half way through the stripline.
     input_parameters["pin_length"] = (
-        input_parameters["port_height"]
+        input_parameters["Launch_height"]
+        + input_parameters["port_height_extension"]
         + input_parameters["cavity_radius"]
         - input_parameters["stripline_offset"]
         + input_parameters["pipe_thickness"]
         - input_parameters["stripline_thickness"] / 2.0
     )
     ring_start_y = (
-        input_parameters["port_height"]
+        input_parameters["Launch_height"]
+        + input_parameters["port_height_extension"]
         + input_parameters["cavity_radius"]
         + input_parameters["pipe_thickness"]
     )
@@ -1132,14 +1134,16 @@ def make_stripline_feedthrough_full(input_parameters, z_loc="us", xyrotation=0):
     )
     # Pin stops half way through the stripline.
     pin_length = (
-        input_parameters["port_height"]
+        input_parameters["Launch_height"]
+        + input_parameters["port_height_extension"]
         + input_parameters["cavity_radius"]
         - input_parameters["stripline_offset"]
         + input_parameters["pipe_thickness"]
         - input_parameters["stripline_thickness"] / 2.0
     )
     ring_start_y = (
-        input_parameters["port_height"]
+        input_parameters["Launch_height"]
+        + input_parameters["port_height_extension"]
         + input_parameters["cavity_radius"]
         + input_parameters["pipe_thickness"]
     )
