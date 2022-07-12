@@ -73,7 +73,7 @@ def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
         aperture_width=end_radius * 3.0,
         arc_radius=end_radius + blend_radius,
     )
-    end_cap = make_beampipe(pipe_aperture=arc_face, pipe_length=2 * thickness)
+    end_cap = make_beampipe(pipe_aperture=arc_face, pipe_length=4 * thickness)
     end_cap = rotate_at(end_cap, rotation_angles=(0, 0, -90))
     end_cap.translate(Base.Vector(0, y_offset, 0))
     end_cap.translate(Base.Vector(-Units.Quantity("0.7mm"), 0, 0))
@@ -92,12 +92,12 @@ def stripline_curved_end(params):
     y_radius = stripline_offset + stripline_half_thickness
     end_radius = y_radius * sin((taper_end_width / 2.0) / 180 * pi)  # chord /2
 
-    end_shape_height = Units.Quantity("30mm")
+    end_shape_height = Units.Quantity("50mm")
     end_box = Part.makeBox(
-        Units.Quantity("30mm"),
+        Units.Quantity("50mm"),
         end_shape_height,
-        Units.Quantity("20mm"),
-        Vector(stripline_length / 2 - end_radius, 0, -Units.Quantity("10mm")),
+        Units.Quantity("30mm"),
+        Vector(stripline_length / 2 - end_radius, 0, -Units.Quantity("15mm")),
     )
     end_cylinder = Part.makeCylinder(
         end_radius,
@@ -1722,7 +1722,9 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
     rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
 
     if "Launch_height" in input_parameters:
-        return stripline, launch_vac
+        rotate_at(shp=end_sweep, rotation_angles=(-xyrotation, 0, 0))
+        rotate_at(shp=end_cap, rotation_angles=(-xyrotation, 0, 0))
+        return stripline, launch_vac, end_sweep, end_cap
     else:
         return stripline
 
