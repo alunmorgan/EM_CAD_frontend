@@ -14,7 +14,7 @@ from FreeCAD_geometry_generation.freecad_apertures import (
     make_circular_aperture,
     make_truncated_arched_cutout_aperture,
     make_rounded_rectangle_aperture,
-    make_arc_aperture_with_notched_flat
+    make_arc_aperture_with_notched_flat,
 )
 from FreeCAD_geometry_generation.freecad_operations import (
     make_beampipe,
@@ -23,61 +23,65 @@ from FreeCAD_geometry_generation.freecad_operations import (
 )
 
 
-def rounded_curved_end(y_offset, thickness, end_width, blend_radius):
+def rounded_curved_end(y_offset, thickness, end_width, blend_radius, end_aperture):
     y_radius = y_offset + thickness / 2.0
     end_radius = y_radius * sin((end_width / 2.0) / 180 * pi)  # chord /2
-
     n_points = 51
     points = []
-    z_axis = []
     ang_scale = linspace(
         float(-pi / 2.0), float(pi / 2.0), num=n_points, endpoint=True
     )  # angular spacing
-    ang_scale = ang_scale[7 : n_points - 7]
     for val in ang_scale:
-        z_axis.append(float(end_radius) * sin(val))
-    for z in z_axis:
-        x_point = -end_radius + Units.Quantity(
-            str(sqrt(end_radius ** 2.0 - Units.Quantity(str(z) + "mm") ** 2.0)) + "mm"
-        )
-        y_point = Units.Quantity(
-            str(sqrt((y_radius) ** 2.0 - Units.Quantity(str(z) + "mm") ** 2.0)) + "mm"
-        )
-        points.append(Vector(x_point, y_point, z))
+        z_point = float(end_radius) * sin(val)
+        x_point = -float(end_radius) + (float(end_radius) * cos(val))
+        temp_y_radius = y_radius - Units.Quantity("1mm") # START HERE FIXME
+        y_point = float(temp_y_radius) * cos((end_radius / y_radius) * val) + float(Units.Quantity("1mm"))
+        points.append(Vector(x_point, y_point, z_point))
 
     end_curve = Part.makePolygon(points)
     end_wire = Part.Wire(end_curve)
 
     cap1_out = []
-    for sd in range(len(z_axis)):
+    sweep_depth = end_radius /2.0 + thickness
+    for sd in range(len(ang_scale)):
         cap1_wire, cap1_face = make_rounded_rectangle_aperture(
-            aperture_height=thickness,
+            aperture_height=sweep_depth + blend_radius,
             aperture_width=thickness,
             corner_radius=blend_radius,
         )
-
-        cap1_wire = rotate_at(cap1_wire, rotation_angles=(90, 180, 0))
+        y_angle = ang_scale[sd] * 180 / pi * (end_radius / y_radius)
+        end_angle = ang_scale[sd] * 180 / pi
+        cap1_wire = rotate_at(cap1_wire, rotation_angles=(90, 90, 0))
         cap1_wire.translate(points[sd])
-        cap1_wire.rotate(points[sd], Base.Vector(0, 1, 0), -(ang_scale[sd] + 90))
-        cap1_wire.translate(Base.Vector(0, Units.Quantity("0.025mm"), 0))
+       # cap1_wire.rotate(points[sd], Base.Vector(0, 1, 0), -(end_angle))
+        cap1_wire.rotate(points[sd], Base.Vector(1, 0, 0), (y_angle))
         cap1_out.append(cap1_wire)
 
     makeSolid = True
-    isFrenet = False
+    isFrenet = True
     Transition = 0
     sweep = end_wire.makePipeShell(cap1_out, makeSolid, isFrenet, Transition)
-    # sweep.translate(Base.Vector(thickness / 2.0, 0, 0))
-
+    sweep.translate(Base.Vector(-blend_radius - sweep_depth/2.0 + thickness,0 , 0 ))
+    sweep_trim = make_beampipe(pipe_aperture=end_aperture, pipe_length=end_radius * 3.0)
+    temp_box_wire, temp_box_face = make_rounded_rectangle_aperture(
+        aperture_height=y_radius * 3.0,
+        aperture_width=y_radius * 3.0,
+        corner_radius=Units.Quantity("0.01mm"),
+    )
+    box_trim = make_beampipe(pipe_aperture=temp_box_face, pipe_length=end_radius * 3.0)
+    sweep_trim = box_trim.cut(sweep_trim)
+    sweep_trim = rotate_at(sweep_trim, rotation_angles=(-90, 0, 0))
+    sweep = sweep.cut(sweep_trim)
     arc_wire, arc_face, = make_arched_cutout_aperture(
         aperture_height=end_radius * 2.0,
         aperture_width=end_radius * 3.0,
-        arc_radius=end_radius + blend_radius,
+        arc_radius=end_radius,
     )
     end_cap = make_beampipe(pipe_aperture=arc_face, pipe_length=4 * thickness)
     end_cap = rotate_at(end_cap, rotation_angles=(0, 0, -90))
     end_cap.translate(Base.Vector(0, y_offset, 0))
-    end_cap.translate(Base.Vector(-Units.Quantity("0.7mm"), 0, 0))
-    return sweep, end_cap
+    end_cap.translate(Base.Vector(-thickness/2.0, 0, 0))
+    return sweep, end_cap, end_wire, sweep_trim
 
 
 def stripline_curved_end(params):
@@ -1582,7 +1586,10 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
             notch_depth=input_parameters["shadowing_cutout_depth"],
             notch_blend_radius=input_parameters["shadowing_cutout_blend_radius"],
         )
-        stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture_with_notched_flat(
+        (
+            stripline_taper_end_wire,
+            stripline_taper_end_face,
+        ) = make_arc_aperture_with_notched_flat(
             arc_inner_radius=input_parameters["stripline_offset"],
             arc_outer_radius=input_parameters["stripline_offset"]
             + input_parameters["stripline_thickness"],
@@ -1689,11 +1696,19 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         stripline = stripline.fuse(ds_launch)
         rotate_at(shp=launch_vac, rotation_angles=(xyrotation, 0, 0))
 
-    end_sweep, end_cap = rounded_curved_end(
+    end_sweep, end_cap , end_wire, sweep_trim= rounded_curved_end(
         y_offset=input_parameters["stripline_offset"],
         thickness=input_parameters["stripline_thickness"],
         end_width=input_parameters["stripline_taper_end_width"],
         blend_radius=input_parameters["stripline_blend_radius"],
+        end_aperture=stripline_taper_end_face,
+    )
+    sweep_trim.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
     )
     end_sweep.translate(
         Base.Vector(
@@ -1709,6 +1724,7 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
             0,
         )
     )
+    rotate_at(shp=sweep_trim, rotation_angles=(-xyrotation, 0, 0))
     rotate_at(shp=end_sweep, rotation_angles=(-xyrotation, 0, 0))
     rotate_at(shp=end_cap, rotation_angles=(-xyrotation, 0, 0))
 
@@ -1722,9 +1738,10 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
     rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
 
     if "Launch_height" in input_parameters:
+        rotate_at(shp=sweep_trim, rotation_angles=(-xyrotation, 0, 0))
         rotate_at(shp=end_sweep, rotation_angles=(-xyrotation, 0, 0))
         rotate_at(shp=end_cap, rotation_angles=(-xyrotation, 0, 0))
-        return stripline, launch_vac, end_sweep, end_cap
+        return stripline, launch_vac, end_sweep, end_cap, end_wire, sweep_trim
     else:
         return stripline
 
