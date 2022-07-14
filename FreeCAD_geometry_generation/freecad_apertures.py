@@ -390,7 +390,7 @@ def make_arc_aperture_with_notched_flat(
     arc_inner_radius,
     arc_outer_radius,
     arc_length,
-    flat_fraction,
+    flat_width,
     notch_height,
     notch_depth,
     notch_blend_radius=Units.Quantity("0 mm"),
@@ -402,7 +402,7 @@ def make_arc_aperture_with_notched_flat(
         arc_inner_radius (float): Radius of the inside edge of the arc.
         arc_outer_radius (float): Radius of the outside edge of the arc.
         arc_length (float): The length of the arc (measured in angle in radians)
-        flat_fraction (float): The proportion of the inner surface which is flat.
+        flat_width (float): The width of the inner surface which is flat.
         notch_height (float): The height of the cut out.
         notch_depth (float): The depth of the cut out.
         notch_blend_radius (float): the amount of smoothing between the inner flat and the cut out.
@@ -415,7 +415,8 @@ def make_arc_aperture_with_notched_flat(
     """
 
     half_angle = arc_length / 2.0  # angles are in radian here
-    flat_angle = half_angle * flat_fraction
+    flat_angle = Units.Quantity(str(atan((flat_width /2.0) / arc_inner_radius) * 180 / pi)+"deg")
+    blend_angle = Units.Quantity(str(atan(blend_radius / (arc_inner_radius + (arc_outer_radius - arc_inner_radius)/2.0)) * 180 / pi)+"deg")
     ho = arc_outer_radius * sin(radians(half_angle))
     vo = arc_outer_radius * cos(radians(half_angle))
     hi = arc_inner_radius * sin(radians(half_angle))
@@ -473,8 +474,10 @@ def make_arc_aperture_with_notched_flat(
         hp1_1 = -ho + blend_radius * sin(radians(half_angle))
         vp1_1 = vo - blend_radius * cos(radians(half_angle))
         p1_1 = Base.Vector(0, hp1_1, vp1_1)
-        hp1_2 = -ho + blend_radius * cos(radians(half_angle))
-        vp1_2 = vo + blend_radius * sin(radians(half_angle))
+        #hp1_2 = -ho + blend_radius * sin(radians(half_angle))
+        #vp1_2 = vo + blend_radius * cos(radians(half_angle))
+        hp1_2 = -arc_outer_radius * sin(radians(half_angle - blend_angle))
+        vp1_2 = arc_outer_radius * cos(radians(half_angle - blend_angle))
         p1_2 = Base.Vector(0, hp1_2, vp1_2)
         p1_centre_h = hp1_1 + 0.5 * abs(hp1_1 - hp1_2)
         p1_centre_v = vp1_1 + 0.5 * abs(vp1_1 - vp1_2)
@@ -487,8 +490,8 @@ def make_arc_aperture_with_notched_flat(
         vcp1_1 = p1_centre_v + (blend_radius - R_correction1) * cos(p1_angle)
         cp1_1 = Base.Vector(0, hcp1_1, vcp1_1)
 
-        hp2_1 = ho - blend_radius * cos(radians(half_angle))
-        vp2_1 = vo + blend_radius * sin(radians(half_angle))
+        hp2_1 = arc_outer_radius * sin(radians(half_angle - blend_angle))
+        vp2_1 = arc_outer_radius * cos(radians(half_angle - blend_angle))
         p2_1 = Base.Vector(0, hp2_1, vp2_1)
         hp2_2 = ho - blend_radius * sin(radians(half_angle))
         vp2_2 = vo - blend_radius * cos(radians(half_angle))
@@ -507,8 +510,8 @@ def make_arc_aperture_with_notched_flat(
         hp3_1 = hi + blend_radius * sin(radians(half_angle))
         vp3_1 = vi + blend_radius * cos(radians(half_angle))
         p3_1 = Base.Vector(0, hp3_1, vp3_1)
-        hp3_2 = hi - blend_radius * cos(radians(half_angle))
-        vp3_2 = vi + blend_radius * sin(radians(half_angle))
+        hp3_2 = arc_inner_radius * sin(radians(half_angle - blend_angle))
+        vp3_2 = arc_inner_radius * cos(radians(half_angle - blend_angle))
         p3_2 = Base.Vector(0, hp3_2, vp3_2)
         p3_centre_h = hp3_1 - 0.5 * abs(hp3_1 - hp3_2)
         p3_centre_v = vp3_1 - 0.5 * abs(vp3_1 - vp3_2)
@@ -521,8 +524,8 @@ def make_arc_aperture_with_notched_flat(
         vcp3_1 = p3_centre_v - (blend_radius - R_correction3) * cos(p3_angle)
         cp3_1 = Base.Vector(0, hcp3_1, vcp3_1)
 
-        hp10_1 = -hi + blend_radius * cos(radians(half_angle))
-        vp10_1 = vi + blend_radius * sin(radians(half_angle))
+        hp10_1 = -arc_inner_radius * sin(radians(half_angle - blend_angle))
+        vp10_1 = arc_inner_radius * cos(radians(half_angle - blend_angle))
         p10_1 = Base.Vector(0, hp10_1, vp10_1)
         hp10_2 = -hi - blend_radius * sin(radians(half_angle))
         vp10_2 = vi + blend_radius * cos(radians(half_angle))
