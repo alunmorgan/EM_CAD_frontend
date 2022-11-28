@@ -1660,6 +1660,49 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
     )
     stripline = stripline_main.fuse(stripline_taper_us)
     stripline = stripline.fuse(stripline_taper_ds)
+    
+    end_sweep, end_cap, end_wire, sweep_trim = rounded_curved_end(
+        y_offset=input_parameters["stripline_offset"],
+        thickness=input_parameters["stripline_thickness"],
+        end_width=input_parameters["stripline_taper_end_width"],
+        blend_radius=input_parameters["stripline_blend_radius"],
+        end_aperture=stripline_taper_end_wire,
+        main_aperture=stripline_main_wire,
+        taper_length=input_parameters["stripline_taper_length"],
+    )
+    sweep_trim.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
+    )
+    end_sweep.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
+    )
+    end_cap.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
+    )
+    rotate_at(shp=sweep_trim, rotation_angles=(-xyrotation, 0, 0))
+    rotate_at(shp=end_sweep, rotation_angles=(-xyrotation, 0, 0))
+    rotate_at(shp=end_cap, rotation_angles=(-xyrotation, 0, 0))
+
+    end_sweep2 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    end_cap2 = end_cap.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+
+    stripline = stripline.cut(end_cap)
+    stripline = stripline.cut(end_cap2)
+    stripline = stripline.fuse(end_sweep)
+    stripline = stripline.fuse(end_sweep2)
+
     if "Launch_height" in input_parameters:
         us_launch = Part.makeCone(
             input_parameters["Launch_rad"],
@@ -1716,47 +1759,7 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         stripline = stripline.fuse(ds_launch)
         rotate_at(shp=launch_vac, rotation_angles=(xyrotation, 0, 0))
 
-    end_sweep, end_cap, end_wire, sweep_trim = rounded_curved_end(
-        y_offset=input_parameters["stripline_offset"],
-        thickness=input_parameters["stripline_thickness"],
-        end_width=input_parameters["stripline_taper_end_width"],
-        blend_radius=input_parameters["stripline_blend_radius"],
-        end_aperture=stripline_taper_end_wire,
-        main_aperture=stripline_main_wire,
-        taper_length=input_parameters["stripline_taper_length"],
-    )
-    sweep_trim.translate(
-        Base.Vector(
-            input_parameters["total_stripline_length"] / 2.0,
-            0,
-            0,
-        )
-    )
-    end_sweep.translate(
-        Base.Vector(
-            input_parameters["total_stripline_length"] / 2.0,
-            0,
-            0,
-        )
-    )
-    end_cap.translate(
-        Base.Vector(
-            input_parameters["total_stripline_length"] / 2.0,
-            0,
-            0,
-        )
-    )
-    rotate_at(shp=sweep_trim, rotation_angles=(-xyrotation, 0, 0))
-    rotate_at(shp=end_sweep, rotation_angles=(-xyrotation, 0, 0))
-    rotate_at(shp=end_cap, rotation_angles=(-xyrotation, 0, 0))
 
-    end_sweep2 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
-    end_cap2 = end_cap.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
-
-    stripline = stripline.cut(end_cap)
-    stripline = stripline.cut(end_cap2)
-    stripline = stripline.fuse(end_sweep)
-    stripline = stripline.fuse(end_sweep2)
     rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
 
     if "Launch_height" in input_parameters:
