@@ -1,0 +1,126 @@
+\documentclass{report}
+\newcommand{\docTitle}{User guide for using the python framework to generate models in FreeCAD}
+\newcommand{\docAuthor}{A.~F.~D.~Morgan}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{a4wide}
+\usepackage{fancyhdr}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{color}
+\usepackage[colorlinks=true, linkcolor=blue, pdfauthor=\docAuthor, pdftitle=\docTitle]{hyperref}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+\setlength{\headheight}{15.2pt}
+\pagestyle{fancy}
+
+\newcommand\abs[1]{\left|#1\right|}
+\rhead{\docTitle}
+\rfoot{\docAuthor}
+\lhead{}
+\begin{document}
+\title{\bf{\docTitle}}
+\author{\docAuthor}
+\maketitle
+\tableofcontents
+
+\chapter{Introduction}
+This framework is designed to make the programatic control of FreeCAD easier with the aim of using the STL files generated as an input to EM modelling software. Geometries are defined in python and can be parameterised, allowing for parameter sweeps. The parameters used to generate a particular model are also stored which aids later analysis. 
+
+One of the advantages of this approach is that the models can be visualised and errors quickly identified \emph{before} being passed on to EM simulation thus saving time overall.
+\chapter{Using an existing file} 
+Use the python interpreter built into FreeCAD.
+\begin{verbatim}
+python pillbox_cavity.py C:\temp
+\end{verbatim}
+will run the code which generates the pillbox cavity models as defined in \verb|pillbox_cavity.py| and places the results in \verb|C:\temp\pillbox_cavity|.
+in this folder will be a sub folder containing the base model, also sub folders containing additional models which form part of user defined parameter sweeps (also defined in \verb|pillbox_cavity.py|)
+Inside each of these sub folders is a native FreeCAD file containing the model. Also a text file describing the parameter settings used to generate this model. There is also a folder caller binary and one named ascii. These contain STL files of the various components defined in \verb|pillbox_cavity.py|. Usually a separate component is defined if it will be a different material in the model.
+
+\chapter{Creating a new file}
+\label{chap:Creating a new file}
+This is an example of a simple input file (\verb|pillbox_cavity.py|). All model files share the same basic structure however things like the imports, input parameters, and parts directory will likely need adjustment in addition to the model definition section itself.
+
+\begin{lstlisting}[language=Python]
+from freecad_elements import make_beampipe, make_circular_aperture, 
+                             ModelException, parameter_sweep, base_model
+from sys import argv
+import os
+
+# baseline model parameters
+INPUT_PARAMETERS = {'cavity_radius': 20, 'cavity_length': 20,
+                    'pipe_radius': 10, 'pipe_length': 80}
+
+# The model name is the name of the file. 
+# The output path is a user defined location.
+MODEL_NAME, OUTPUT_PATH = argv
+
+def pillbox_cavity_model(input_parameters):
+    """ Generates the geometry for the pillbox cavity in FreeCAD. 
+        Also writes out the geometry as STL files and writes a 
+        "sidecar" text file containing the input parameters used.
+
+         Args:
+            input_parameters (dict): Dictionary of input parameter names and values
+        """
+
+    try:
+        # The model is defined in this section. Different components can be defined 
+        # and later added to the parts dictionary.
+        wire1, face1 = make_circular_aperture(input_parameters['pipe_radius'])
+        wire2, face2 = make_circular_aperture(input_parameters['cavity_radius'])
+        beampipe1 = make_beampipe(face1, input_parameters['pipe_length'],
+                                  (-input_parameters['pipe_length'] / 2. 
+                                   - input_parameters['cavity_length'] / 2., 0, 0)
+                                  )
+        beampipe3 = make_beampipe(face1, input_parameters['pipe_length'],
+                                  (input_parameters['pipe_length'] / 2. 
+                                   + input_parameters['cavity_length'] / 2., 0, 0)
+                                  )
+        beampipe2 = make_beampipe(face2, input_parameters['cavity_length'])
+        fin1 = beampipe1.fuse(beampipe2)
+        fin2 = fin1.fuse(beampipe3)
+    except Exception as e:
+        # This allows errors in the model to be separated from other code errors.
+        raise ModelException(e)
+        
+    # An entry in the parts dictionary corresponds to an STL file. 
+    # This is useful for parts of differing materials.
+    parts = {'all': fin2}
+    return parts, os.path.splitext(os.path.basename(MODEL_NAME))[0]
+
+# Generate the base model.
+base_model(pillbox_cavity_model, INPUT_PARAMETERS, OUTPUT_PATH, accuracy=10)
+# Generate additional models to form a parameter sweep.
+parameter_sweep(pillbox_cavity_model, INPUT_PARAMETERS, OUTPUT_PATH, 
+                'cavity_radius', [10, 30, 40, 50])
+\end{lstlisting}
+
+\chapter{Helper functions}
+In \verb|freecad_elements.py| various helper functions are defined. These are mainly to do with creating beam pipes with various shapes, and tapers between various apertures. Their basic use can be seen in the example code in \autoref{chap:Creating a new file}.
+
+\end{document}
