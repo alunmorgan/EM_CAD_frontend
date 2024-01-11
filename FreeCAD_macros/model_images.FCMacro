@@ -2,92 +2,79 @@ import FreeCAD
 from pivy import coin
 from copy import copy
 clip=coin.SoClipPlane()
-doc_name = Gui.ActiveDocument.Document.Label
-parts = []
-for obj in FreeCAD.ActiveDocument.Objects:
-    parts.append(obj.Label)
 
 ImageSizeX_iso = 2000 # 919
-ImageSixeY_iso = 1000 # 598
+ImageSizeY_iso = 1000 # 598
 ImageSizeX_side = 2000 # 919
-ImageSixeY_side = 1250 # 598
+ImageSizeY_side = 1250 # 598
 ImageSizeX_end = 2000 # 919
-ImageSixeY_end = 2000 # 598
+ImageSizeY_end = 2000 # 598
 
-# from https://stackoverflow.com/questions/18715688/find-common-substring-between-two-strings
-def common_start(sa, sb):
-    """ returns the longest common substring from the beginning of sa and sb """
-    def _iter():
-        for a, b in zip(sa, sb):
-            if a == b:
-                yield a
-            else:
-                return
+def save_image(image_suffix, imageSizeX, imageSizeY):
+    doc_name = Gui.ActiveDocument.Document.Label
+    root_path = FreeCAD.ActiveDocument.FileName
+    out_path, _1 = os.path.split(root_path)
+    out_loc = ''.join((out_path ,'/', doc_name, '_', image_suffix))
+    Gui.activeDocument().activeView().saveImage(''.join((out_loc, '.png')), imageSizeX, imageSizeY, 'Current')
+    clip.plane.setValue(coin.SbPlane(coin.SbVec3f(-1,0,0),0)) #  set this to control the clipping plane
+    Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+    clip.on.setValue(True) # switch on
+    Gui.activeDocument().activeView().saveImage(''.join((out_loc, '_yz_cut',  '.png')), imageSizeX, imageSizeY, 'Current')
+    clip.on.setValue(False) # switch off
+    clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,1,0),0)) #  set this to control the clipping plane
+    Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+    clip.on.setValue(True) # switch on
+    Gui.activeDocument().activeView().saveImage(''.join((out_loc, '_xz_cut',  '.png')), imageSizeX, imageSizeY, 'Current')
+    clip.on.setValue(False) # switch off
+    clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,0,-1),0)) #  set this to control the clipping plane
+    Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
+    clip.on.setValue(True) # switch on
+    Gui.activeDocument().activeView().saveImage(''.join((out_loc, '_xy_cut',  '.png')), imageSizeX, imageSizeY, 'Current')
+    clip.on.setValue(False) # switch off
 
-    return ''.join(_iter())
+Gui.activeDocument().activeView().viewIsometric()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('iso',  ImageSizeX_iso, ImageSizeY_iso)
 
-for n in range(len(parts)-1):
-    test = common_start(parts[0], parts[n + 1])
-    if n == 0:
-        head = copy(test)
-        print(head)
-    else:
-        if len(head) > len(test):
-            head = copy(test)
-            print(head)
+Gui.activeDocument().activeView().viewRight()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('yz',  ImageSizeX_iso, ImageSizeY_end)
+
+Gui.activeDocument().activeView().viewLeft()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('-yz',  ImageSizeX_iso, ImageSizeY_end)
+
+Gui.activeDocument().activeView().viewTop()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('-xy', ImageSizeX_side, ImageSizeY_side)
+
+Gui.activeDocument().activeView().viewBottom()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('xy', ImageSizeX_side, ImageSizeY_side)
+
+Gui.activeDocument().activeView().viewFront()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('xz', ImageSizeX_side, ImageSizeY_side)
+
+Gui.activeDocument().activeView().viewRear()
+Gui.SendMsgToActiveView("ViewFit")
+save_image('-xz', ImageSizeX_side, ImageSizeY_side)
 
 objs = FreeCAD.ActiveDocument.Objects
+old_vis = []
 for obj in objs:
+    old_vis.append(obj.ViewObject.Visibility)
     obj.ViewObject.Visibility=False
     if "_vac" in obj.Label:
          obj.ViewObject.Visibility=True
 
 Gui.activeDocument().activeView().viewIsometric()
 Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_vac.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
+save_image('vac', ImageSizeX_iso, ImageSizeY_iso)
 
-objs = FreeCAD.ActiveDocument.Objects
+ck = 0
 for obj in objs:
-    obj.ViewObject.Visibility=True
-    if "_vac" in obj.Label:
-         obj.ViewObject.Visibility=False
+    obj.ViewObject.Visibility=old_vis[ck]
+    ck = ck + 1
 
-Gui.activeDocument().activeView().viewRight()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_end.png',ImageSizeX_end,ImageSixeY_end,'Current')
-Gui.activeDocument().activeView().viewIsometric()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_iso.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
-clip.plane.setValue(coin.SbPlane(coin.SbVec3f(-1,0,0),0)) #  set this to control the clipping plane
-Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
-clip.on.setValue(True) # switch on
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_yz_cut_iso.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
-Gui.activeDocument().activeView().viewRight()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_yz_cut_us_end.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
-clip.on.setValue(False) # switch off
-clip.plane.setValue(coin.SbPlane(coin.SbVec3f(1,0,0),0)) #  set this to control the clipping plane
-Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
-clip.on.setValue(True) # switch on
-Gui.activeDocument().activeView().viewLeft()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_yz_cut_ds_end.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
-clip.on.setValue(False) # switch off
-Gui.activeDocument().activeView().viewTop()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_side.png',ImageSizeX_side,ImageSixeY_side,'Current')
-clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,0,1),0)) #  set this to control the clipping plane
-Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
-clip.on.setValue(True) # switch on
-Gui.activeDocument().activeView().viewBottom()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_side_cut.png',ImageSizeX_side,ImageSixeY_side,'Current')
-clip.on.setValue(False) # switch off
-clip.plane.setValue(coin.SbPlane(coin.SbVec3f(0,0,-1),0)) #  set this to control the clipping plane
-Gui.ActiveDocument.ActiveView.getSceneGraph().insertChild(clip,0)
-clip.on.setValue(True) # switch on
-Gui.activeDocument().activeView().viewIsometric()
-Gui.activeDocument().activeView().viewRotateLeft()
-Gui.SendMsgToActiveView("ViewFit")
-Gui.activeDocument().activeView().saveImage(doc_name+'_full_xz_cut_iso.png',ImageSizeX_iso,ImageSixeY_iso,'Current')
 clip.on.setValue(False) # switch off
