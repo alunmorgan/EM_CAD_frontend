@@ -1,0 +1,24 @@
+import FreeCAD
+from pivy import coin
+from copy import copy
+import Mesh
+import MeshPart
+import os
+import inspect
+
+doc_name = Gui.ActiveDocument.Document.Label
+out_name = doc_name.replace('_Base', '')
+root_path = FreeCAD.ActiveDocument.FileName
+out_path, _1 = os.path.split(root_path)
+if not os.path.exists(os.path.join(out_path,'ascii')):
+    os.mkdir(os.path.join(out_path,'ascii'))
+
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    if "(Meshed)" in obj.Label:
+        try:
+            modelPart=FreeCAD.ActiveDocument.getObject(obj.Name)    
+            meshName = obj.Label.replace(' (Meshed)', '')
+            modelPart.Mesh.write(os.path.join(out_path, 'ascii', ''.join([out_name,'-',meshName, '.stl'])), "AST", obj.Label)    
+        except:
+            print('Error exporting STL for ', obj.Label)
