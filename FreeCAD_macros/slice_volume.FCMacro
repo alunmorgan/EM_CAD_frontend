@@ -1,0 +1,27 @@
+import FreeCAD
+import Mesh
+from FreeCAD import Base
+
+doc = FreeCAD.ActiveDocument
+objs = FreeCAD.ActiveDocument.Objects
+for obj in objs:
+    msh = FreeCAD.ActiveDocument.getObject(obj.Name)  
+    label = msh.Label
+    spacing = 15
+    z_spacing = spacing *6
+   #old_mshz = msh.Mesh.copy()
+    for hes in range(-30,31, spacing):
+        # We need to work on a copy of the msh.Mesh object:   
+        slicez = msh.Mesh.copy()
+        new_mshz = Mesh.createBox(500, 100, spacing)
+        p=Base.Placement()
+        p.Base=Base.Vector(0,0,spacing/2. + hes)
+        new_mshz.transform(p.toMatrix())
+        slicez.difference(new_mshz)
+        new_slice = App.ActiveDocument.addObject("Mesh::Feature", "".join((label, "_", str(hes))))
+        new_slice.Mesh = slicez
+        new_slice = App.ActiveDocument.addObject("Mesh::Feature", "".join(("slice", "_", str(hes))))
+        new_slice.Mesh = new_mshz
+        doc.recompute()
+
+
