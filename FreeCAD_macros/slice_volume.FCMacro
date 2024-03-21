@@ -1,27 +1,30 @@
 import FreeCAD
 import Mesh
 from FreeCAD import Base
+import Part
 
+spacing = 10
+x_spacing = spacing
+y_spacing = spacing
+z_spacing = spacing
+x_extent = 130
+y_extent = 50
+z_extent = 50
 doc = FreeCAD.ActiveDocument
 objs = FreeCAD.ActiveDocument.Objects
 for obj in objs:
     msh = FreeCAD.ActiveDocument.getObject(obj.Name)  
     label = msh.Label
-    spacing = 15
-    z_spacing = spacing *6
-   #old_mshz = msh.Mesh.copy()
-    for hes in range(-30,31, spacing):
-        # We need to work on a copy of the msh.Mesh object:   
-        slicez = msh.Mesh.copy()
-        new_mshz = Mesh.createBox(500, 100, spacing)
-        p=Base.Placement()
-        p.Base=Base.Vector(0,0,spacing/2. + hes)
-        new_mshz.transform(p.toMatrix())
-        slicez.difference(new_mshz)
-        new_slice = App.ActiveDocument.addObject("Mesh::Feature", "".join((label, "_", str(hes))))
-        new_slice.Mesh = slicez
-        new_slice = App.ActiveDocument.addObject("Mesh::Feature", "".join(("slice", "_", str(hes))))
-        new_slice.Mesh = new_mshz
-        doc.recompute()
-
-
+    full_geometry_shape = Part.Shape()
+    full_geometry_shape.makeShapeFromMesh(msh.Mesh.Topology, 0.05)
+    full_geometry_solid = Part.makeSolid(full_geometry_shape)
+    #Part.show(full_geometry_solid, label)
+    for hes in range(-z_extent, z_extent, z_spacing):
+        for hds in range(-x_extent, x_extent, x_spacing):
+            for jeh in range(-y_extent, y_extent, y_spacing):
+                voxel = Part.makeBox(x_spacing, y_spacing, z_spacing)
+                voxel.translate(FreeCAD.Vector(x_spacing/2. + hds, y_spacing/2. + jeh, z_spacing/2. + hes))
+                model_segment = full_geometry_solid.common(voxel)
+                if model_segment.Volume > 0:
+                    Part.show(model_segment,  "".join((label, "_", str(hes), "_", str(hds), "_", str(jeh))))
+                    doc.recompute()
