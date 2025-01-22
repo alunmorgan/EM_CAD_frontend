@@ -15,10 +15,14 @@ if not os.path.exists(os.path.join(out_path,'ascii')):
 
 objs = FreeCAD.ActiveDocument.Objects
 for obj in objs:
-    if "(Meshed)" in obj.Label:
+    temp_properties = obj.PropertiesList
+    if "Mesh" in temp_properties:
         try:
-            modelPart=FreeCAD.ActiveDocument.getObject(obj.Name)    
-            meshName = obj.Label.replace(' (Meshed)', '')
+            modelPart=FreeCAD.ActiveDocument.getObject(obj.Name)  
+            if "(Meshed)" in obj.Label:  
+                meshName = obj.Label.replace(' (Meshed)', '')
+            else:
+                meshName = obj.Label        
             modelPart.Mesh.write(os.path.join(out_path, 'ascii', ''.join([out_name,'-',meshName, '.stl'])), "AST", obj.Label)    
         except:
             print('Error exporting STL for ', obj.Label)
