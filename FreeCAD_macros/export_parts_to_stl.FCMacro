@@ -39,6 +39,9 @@ objs = FreeCAD.ActiveDocument.Objects
 for obj in objs:
     a = obj.Name
     b = obj.Label
+    c = obj.InList
+    if c == []
+        continue
     if b == "X_Axis" or   b == "Y_Axis"  or b == "Z_Axis" or  b == "XY_Plane" or  b == "XZ_Plane" or  b == "YZ_Plane" or  b == "Origin" or b == "component1|vessel":
         continue
     if "(Meshed)" in b:
@@ -50,8 +53,8 @@ for obj in objs:
     mymesh =FreeCAD.ActiveDocument.addObject("Mesh::Feature","Mesh")
     mymesh.Mesh = m1
     mymesh.Label = b + "(Meshed)"
-    root_path = FreeCAD.ActiveDocument.FileName
-    out_path, _1 = os.path.split(root_path)
-    out_name = doc_name.replace('_Base', '')
-    mymesh.Mesh.write(os.path.join(out_path, 'ascii', ''.join([out_name,'-',b, '.stl'])), "AST", b)
+ #   root_path = FreeCAD.ActiveDocument.FileName
+#    out_path, _1 = os.path.split(root_path)
+   # out_name = doc_name.replace('_Base', '')
+  #  mymesh.Mesh.write(os.path.join(out_path, 'ascii', ''.join([out_name,'-',b, '.stl'])), "AST", b)
     del   __part__, __shape__
