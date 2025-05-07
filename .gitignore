@@ -1,5 +1,9 @@
 .idea/
 .vscode/
+**/SOLVER-LOGFILE
+**/WHAT-GDFIDL-DID-SPIT-OUT
+**/POSTP-LOGFILE
+**/WHAT-PP-DID-SPIT-OUT
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
