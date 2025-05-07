@@ -23,10 +23,10 @@ for obj in objs:
         continue
     if "(Meshed)" in b:
         continue
+    print(b)
     __part__=FreeCAD.ActiveDocument.getObject(a)    
     __shape__=__part__.Shape.copy(False)
-    m1 = MeshPart.meshFromShape(Shape=__shape__, LinearDeflection=0.01, AngularDeflection=0.0174533,  Relative=True)
     mymesh =FreeCAD.ActiveDocument.addObject("Mesh::Feature","Mesh")
-    mymesh.Mesh = m1
-    mymesh.Label = b + "(Meshed)"
+    mymesh.Mesh = MeshPart.meshFromShape(Shape=__shape__, LinearDeflection=0.2, AngularDeflection=0.0174533,  Relative=True)
+    mymesh.Label = b + " (Meshed)"
     del   __part__, __shape__

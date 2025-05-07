@@ -1,0 +1,10 @@
+import webbrowser 
+
+##########
+# WorkBenche
+# Code used to download the zip file from FreeCAD
+##########
+
+FreeCAD.Console.PrintMessage("\n" + "You must download the Info.zip file in the author github KeithSloan/FreeCAD_Infosite" + "\n")
+FreeCAD.Console.PrintMessage("http://keithsloan.dynu.com/Keith&Jenny/" + "\n")
+webbrowser.open("https://github.com/KeithSloan/FreeCAD_Info/archive/master.zip")
