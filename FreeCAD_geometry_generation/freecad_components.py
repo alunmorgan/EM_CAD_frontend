@@ -8,6 +8,7 @@ from numpy import linspace
 
 from FreeCAD_geometry_generation.freecad_apertures import (
     make_arc_aperture,
+    make_rectangle_aperture,
     make_arched_base_aperture,
     make_arched_corner_cutout_aperture,
     make_arched_cutout_aperture,
@@ -92,7 +93,10 @@ def rounded_curved_end(
     sweep_trim = rotate_at(sweep_trim, rotation_angles=(-90, 0, 0))
     sweep_trim.translate(Base.Vector(-trim_section_length / 2.0, 0, 0))
     sweep = sweep.cut(sweep_trim)
-    arc_wire, arc_face, = make_arched_cutout_aperture(
+    (
+        arc_wire,
+        arc_face,
+    ) = make_arched_cutout_aperture(
         aperture_height=end_radius * 2.0,
         aperture_width=end_radius * 3.0,
         arc_radius=end_radius,
@@ -148,7 +152,7 @@ def stripline_curved_end(params):
             stripline_length / 2.0
             - end_radius
             + Units.Quantity(
-                str(sqrt(end_radius ** 2.0 - Units.Quantity(str(z) + "mm") ** 2.0))
+                str(sqrt(end_radius**2.0 - Units.Quantity(str(z) + "mm") ** 2.0))
                 + "mm"
             )
         )
@@ -1091,6 +1095,7 @@ def make_stripline_feedthrough_parameterised(
         - input_parameters["stripline_offset"]
         + input_parameters["pipe_thickness"]
         - input_parameters["stripline_thickness"] / 2.0
+        - input_parameters["shadowing_cutout_height"]
     )
     ring_start_y = (
         input_parameters["Launch_height"]
@@ -1660,7 +1665,7 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
     )
     stripline = stripline_main.fuse(stripline_taper_us)
     stripline = stripline.fuse(stripline_taper_ds)
-    
+
     end_sweep, end_cap, end_wire, sweep_trim = rounded_curved_end(
         y_offset=input_parameters["stripline_offset"],
         thickness=input_parameters["stripline_thickness"],
@@ -1759,7 +1764,6 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         stripline = stripline.fuse(ds_launch)
         rotate_at(shp=launch_vac, rotation_angles=(xyrotation, 0, 0))
 
-
     rotate_at(shp=stripline, rotation_angles=(xyrotation, 0, 0))
 
     if "Launch_height" in input_parameters:
@@ -1778,6 +1782,259 @@ def make_stripline_fixed_ratio_launch(input_parameters, xyrotation=0):
         )
     else:
         return stripline
+
+
+def make_stripline_fixed_ratio_launch_sectioned(input_parameters, xyrotation=0):
+    stripline_mid_section_length = (
+        input_parameters["total_stripline_length"]
+        - 2 * input_parameters["stripline_taper_length"]
+    )
+    if input_parameters["stripline_flat_inner_surface"]:
+        stripline_main_wire, stripline_main_face = make_arc_aperture_with_notched_flat(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+            flat_width=input_parameters["flat_width"],
+            notch_height=input_parameters["shadowing_cutout_height"],
+            notch_depth=input_parameters["shadowing_cutout_depth"],
+            notch_blend_radius=input_parameters["shadowing_cutout_blend_radius"],
+        )
+        (
+            stripline_taper_end_wire,
+            stripline_taper_end_face,
+        ) = make_arc_aperture_with_notched_flat(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_taper_end_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+            flat_width=input_parameters["stripline_taper_flat_width"],
+            notch_height=input_parameters["shadowing_cutout_height"],
+            notch_depth=input_parameters["shadowing_cutout_depth"],
+            notch_blend_radius=input_parameters["shadowing_cutout_blend_radius"],
+        )
+    else:
+        stripline_main_wire, stripline_main_face = make_arc_aperture(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+        )
+        stripline_taper_end_wire, stripline_taper_end_face = make_arc_aperture(
+            arc_inner_radius=input_parameters["stripline_offset"],
+            arc_outer_radius=input_parameters["stripline_offset"]
+            + input_parameters["stripline_thickness"],
+            arc_length=input_parameters["stripline_taper_end_width"],
+            blend_radius=input_parameters["stripline_blend_radius"],
+        )
+
+    stripline_main = []
+    for djs in range(10):
+        stripline_main.append(
+            rotate_at(
+                shp=make_beampipe(
+                    pipe_aperture=stripline_main_face,
+                    pipe_length=stripline_mid_section_length
+                    / input_parameters["n_sections"],
+                    loc=(
+                        -stripline_mid_section_length / 2.0
+                        + (djs + 0.5)
+                        * stripline_mid_section_length
+                        / (1.0 * input_parameters["n_sections"]),
+                        0,
+                        0,
+                    ),
+                ),
+                rotation_angles=(90, 0, 0),
+            )
+        )
+    stripline_taper_us = make_taper(
+        aperture1=stripline_taper_end_wire,
+        aperture2=stripline_main_wire,
+        taper_length=input_parameters["stripline_taper_length"],
+        loc=(
+            -input_parameters["stripline_taper_length"]
+            - stripline_mid_section_length / 2.0,
+            0,
+            0,
+        ),
+    )
+
+    end_sweep, end_cap, end_wire, sweep_trim = rounded_curved_end(
+        y_offset=input_parameters["stripline_offset"],
+        thickness=input_parameters["stripline_thickness"],
+        end_width=input_parameters["stripline_taper_end_width"],
+        blend_radius=input_parameters["stripline_blend_radius"],
+        end_aperture=stripline_taper_end_wire,
+        main_aperture=stripline_main_wire,
+        taper_length=input_parameters["stripline_taper_length"],
+    )
+    sweep_trim.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
+    )
+    end_sweep.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
+    )
+    end_cap.translate(
+        Base.Vector(
+            input_parameters["total_stripline_length"] / 2.0,
+            0,
+            0,
+        )
+    )
+    rotate_at(shp=sweep_trim, rotation_angles=(-xyrotation, 0, 0))
+    rotate_at(shp=end_sweep, rotation_angles=(-xyrotation, 0, 0))
+    rotate_at(shp=end_cap, rotation_angles=(-xyrotation, 0, 0))
+
+    end_sweep2 = end_sweep.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+    end_cap2 = end_cap.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+
+    stripline_taper_us = stripline_taper_us.cut(end_cap2)
+    stripline_taper_us = stripline_taper_us.fuse(end_sweep2)
+    if input_parameters["shadowing_cutout_height"]:
+        shadowing_wire, shadowing_face = make_circular_aperture(
+            input_parameters["shadowing_cutout_height"] / 2.0
+        )
+        shadow_cutout = make_beampipe(
+            pipe_aperture=shadowing_face,
+            pipe_length=1.5 * input_parameters["total_stripline_length"],
+        )
+        shadow_cutout.translate(Base.Vector(0, 0, input_parameters["stripline_offset"]))
+        shadowing_wire2, shadowing_face2 = make_rectangle_aperture(
+            aperture_width=input_parameters["shadowing_cutout_height"],
+            aperture_height=input_parameters["stripline_offset"],
+        )
+        shadow_cutout2 = make_beampipe(
+            pipe_aperture=shadowing_face2,
+            pipe_length=1.5 * input_parameters["total_stripline_length"],
+        )
+
+        stripline_taper_us = stripline_taper_us.cut(shadow_cutout)
+        stripline_taper_us = stripline_taper_us.cut(shadow_cutout2)
+        rotate_at(shp=stripline_taper_us, rotation_angles=(90, 0, 0))
+
+    stripline_taper_ds = stripline_taper_us.mirror(
+        Base.Vector(0, 0, 0), Base.Vector(1, 0, 0)
+    )
+
+    if "Launch_height" in input_parameters:
+        stripline_us_launch_full = Part.makeCone(
+            input_parameters["Launch_rad"],
+            input_parameters["pin_radius"],
+            input_parameters["Launch_height"],
+            Base.Vector(
+                -input_parameters["total_stripline_length"] / 2.0
+                + input_parameters["feedthrough_offset"],
+                0,
+                input_parameters["stripline_offset"],
+            ),
+        )
+
+        cone_base = Units.Quantity(
+            str(float(input_parameters["Launch_rad"]) * 10 ** (50 / 138)) + "mm"
+        )
+        cone_top = Units.Quantity(
+            str(float(input_parameters["pin_radius"]) * 10 ** (50 / 138)) + "mm"
+        )
+        us_launch_vac = Part.makeCone(
+            cone_base,
+            cone_top,
+            input_parameters["Launch_height"],
+            Base.Vector(
+                -input_parameters["total_stripline_length"] / 2.0
+                + input_parameters["feedthrough_offset"],
+                0,
+                input_parameters["stripline_offset"],
+            ),
+        )
+        ds_launch_vac = us_launch_vac.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+
+        launch_vac = us_launch_vac.fuse(ds_launch_vac)
+        rotate_at(shp=launch_vac, rotation_angles=(xyrotation, 0, 0))
+
+        if input_parameters["shadowing_cutout_height"]:
+            stripline_us_launch_full = stripline_us_launch_full.cut(shadow_cutout)
+            stripline_us_launch_full = stripline_us_launch_full.cut(shadow_cutout2)
+
+        rotate_at(shp=stripline_us_launch_full, rotation_angles=(-xyrotation, 0, 0))
+        launch_section_lengths = [
+            Units.Quantity("0 mm"),
+            Units.Quantity("15 mm"),
+            Units.Quantity("10 mm"),
+            Units.Quantity("10 mm"),
+            Units.Quantity("10 mm"),
+            Units.Quantity("10 mm"),
+            Units.Quantity("10 mm"),
+            Units.Quantity("15 mm"),
+        ]
+        launch_cumulative_lengths = [   
+            Units.Quantity("0 mm"),
+            Units.Quantity("15 mm"),
+            Units.Quantity("25 mm"),
+            Units.Quantity("35 mm"),
+            Units.Quantity("45 mm"),
+            Units.Quantity("55 mm"),
+            Units.Quantity("65 mm"),
+            Units.Quantity("80 mm"),
+        ]
+        launch_cut = []
+        for nse in range(1, len(launch_section_lengths)):
+            launch_cut.append(
+                Part.makeCylinder(
+                    input_parameters["Launch_rad"] * 2.0,
+                    launch_section_lengths[nse],
+                    Base.Vector(
+                        -input_parameters["total_stripline_length"] / 2
+                        + input_parameters["Launch_rad"],
+                        -launch_cumulative_lengths[nse-1],
+                        0,
+                    ),
+                    Base.Vector(0, -1, 0),
+                )
+            )
+
+        stripline_us_launch = []
+        for ck in range(len(launch_cut)):
+            ck2 = 0
+            launch_temp = deepcopy(stripline_us_launch_full)
+            for cuts in launch_cut:
+                if ck2 != ck:
+                    launch_temp = launch_temp.cut(cuts)
+                ck2 = ck2 + 1
+            stripline_us_launch.append(launch_temp)
+
+        stripline_ds_launch = []
+        for enrf in stripline_us_launch:
+            stripline_ds_launch.append(
+                enrf.mirror(Base.Vector(0, 0, 0), Base.Vector(1, 0, 0))
+            )
+    if "Launch_height" in input_parameters:
+        return (
+            stripline_main,
+            stripline_taper_us,
+            stripline_taper_ds,
+            stripline_us_launch,
+            stripline_ds_launch,
+            launch_vac,
+            launch_cut,
+        )
+    else:
+        return (
+            stripline_main,
+            stripline_taper_us,
+            stripline_taper_ds,
+        )
 
 
 def make_stripline(input_parameters, xyrotation=0):
@@ -1871,10 +2128,6 @@ def make_stripline(input_parameters, xyrotation=0):
             ),
         )
         launch_vac = us_launch_vac.fuse(ds_launch_vac)
-        # stripline = stripline.cut(stripline_end_us)
-        # stripline = stripline.cut(stripline_end_ds)
-        # us_launch = us_launch.cut(stripline_end_us)
-        # ds_launch = ds_launch.cut(stripline_end_ds)
         stripline = stripline.fuse(us_launch)
         stripline = stripline.fuse(ds_launch)
 
